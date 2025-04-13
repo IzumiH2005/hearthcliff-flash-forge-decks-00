@@ -14,7 +14,7 @@ import {
   Settings,
   ThumbsUp,
   ThumbsDown,
-  VolumeUp
+  Volume
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -61,7 +61,6 @@ const StudyPage = () => {
   const autoFlipTimer = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  // Load deck and cards
   useEffect(() => {
     if (!id) return;
     
@@ -78,7 +77,6 @@ const StudyPage = () => {
     
     setDeck(deckData);
     
-    // If we have a themeId, load theme and its cards
     if (themeId) {
       const themeData = getTheme(themeId);
       if (!themeData) {
@@ -95,7 +93,6 @@ const StudyPage = () => {
       const cards = getFlashcardsByTheme(themeId);
       setFlashcards(cards);
     } else {
-      // Otherwise load all deck cards
       const cards = getFlashcardsByDeck(id);
       setFlashcards(cards);
     }
@@ -103,7 +100,6 @@ const StudyPage = () => {
     setIsLoading(false);
   }, [id, themeId, navigate, toast]);
   
-  // Shuffle cards when needed
   useEffect(() => {
     if (shuffleCards) {
       setFlashcards(cards => {
@@ -113,7 +109,6 @@ const StudyPage = () => {
     }
   }, [shuffleCards]);
   
-  // Set up auto-flip timer
   useEffect(() => {
     if (autoFlip && !isFlipped) {
       autoFlipTimer.current = setTimeout(() => {
@@ -128,14 +123,12 @@ const StudyPage = () => {
     };
   }, [currentIndex, isFlipped, autoFlip, autoFlipDelay]);
   
-  // Update progress
   useEffect(() => {
     if (flashcards.length > 0) {
       setProgress(Math.round((currentIndex / flashcards.length) * 100));
     }
   }, [currentIndex, flashcards.length]);
   
-  // Play audio if available and autoPlayAudio is enabled
   useEffect(() => {
     if (autoPlayAudio && !isFlipped && flashcards[currentIndex]?.front.audio) {
       if (audioRef.current) {
@@ -150,7 +143,6 @@ const StudyPage = () => {
     }
   }, [currentIndex, isFlipped, autoPlayAudio, flashcards]);
   
-  // Filter cards based on study mode
   useEffect(() => {
     if (!id) return;
     
@@ -189,12 +181,10 @@ const StudyPage = () => {
       setCurrentIndex(currentIndex + 1);
       setIsFlipped(false);
     } else {
-      // Show completion dialog
       toast({
         title: "Félicitations!",
         description: "Vous avez terminé toutes les cartes de ce deck.",
       });
-      // Reset to beginning
       setCurrentIndex(0);
       setIsFlipped(false);
     }
@@ -395,7 +385,7 @@ const StudyPage = () => {
             size="sm" 
             onClick={() => playAudio(flashcards[currentIndex].front.audio!)}
           >
-            <VolumeUp className="mr-1 h-4 w-4" />
+            <Volume className="mr-1 h-4 w-4" />
             Écouter
           </Button>
         )}
@@ -406,16 +396,14 @@ const StudyPage = () => {
             size="sm" 
             onClick={() => playAudio(flashcards[currentIndex].back.audio!)}
           >
-            <VolumeUp className="mr-1 h-4 w-4" />
+            <Volume className="mr-1 h-4 w-4" />
             Écouter
           </Button>
         )}
       </div>
       
-      {/* Audio element for playing audio files */}
       <audio ref={audioRef} className="hidden" />
       
-      {/* Settings Dialog */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
         <DialogContent>
           <DialogHeader>

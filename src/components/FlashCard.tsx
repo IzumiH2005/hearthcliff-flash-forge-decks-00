@@ -1,7 +1,6 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
-import { VolumeUp } from "lucide-react";
+import { Volume } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface FlashCardProps {
@@ -89,7 +88,7 @@ const FlashCard = ({
               onClick={(e) => playAudio(front.audio!, e)}
               className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
             >
-              <VolumeUp className="h-5 w-5" />
+              <Volume className="h-5 w-5" />
             </button>
           )}
         </div>
@@ -112,7 +111,7 @@ const FlashCard = ({
               onClick={(e) => playAudio(back.audio!, e)}
               className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
             >
-              <VolumeUp className="h-5 w-5" />
+              <Volume className="h-5 w-5" />
             </button>
           )}
         </div>
