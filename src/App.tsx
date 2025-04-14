@@ -18,6 +18,7 @@ import ExplorePage from "@/pages/ExplorePage";
 import CreatePage from "@/pages/CreatePage";
 import ProfilePage from "@/pages/ProfilePage";
 import DeckPage from "@/pages/DeckPage";
+import EditDeckPage from "@/pages/EditDeckPage";
 import ThemePage from "@/pages/ThemePage";
 import StudyPage from "@/pages/StudyPage";
 import NotFound from "@/pages/NotFound";
@@ -109,6 +110,18 @@ const App = () => {
                     <Navbar />
                     <main className="flex-1">
                       <DeckPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:id/edit" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <EditDeckPage />
                     </main>
                     <Footer />
                   </>

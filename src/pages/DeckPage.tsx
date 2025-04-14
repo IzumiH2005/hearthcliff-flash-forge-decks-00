@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { 
@@ -58,14 +57,12 @@ const DeckPage = () => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
   
-  // New theme form
   const [newTheme, setNewTheme] = useState({
     title: "",
     description: "",
     coverImage: undefined as string | undefined,
   });
   
-  // New flashcard form
   const [newCard, setNewCard] = useState({
     themeId: "" as string | undefined,
     front: {
@@ -80,7 +77,6 @@ const DeckPage = () => {
     },
   });
   
-  // Active flashcard for view mode
   const [activeCardIndex, setActiveCardIndex] = useState(0);
   
   useEffect(() => {
@@ -98,9 +94,9 @@ const DeckPage = () => {
     }
     
     setDeck(deckData);
+    const user = getUser();
     setIsOwner(deckData.authorId === user?.id);
     
-    // Load themes and flashcards
     const deckThemes = getThemesByDeck(id);
     setThemes(deckThemes);
     
@@ -108,7 +104,7 @@ const DeckPage = () => {
     setFlashcards(deckCards);
     
     setIsLoading(false);
-  }, [id, navigate, toast, user?.id]);
+  }, [id, navigate, toast]);
   
   const handleThemeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -407,7 +403,7 @@ const DeckPage = () => {
       <div className="flex flex-col md:flex-row gap-6 mb-8">
         {deck.coverImage ? (
           <div className="w-full md:w-1/3 lg:w-1/4">
-            <div className="relative aspect-video md:aspect-square rounded-xl overflow-hidden border">
+            <div className="relative aspect-video md:aspect-square rounded-xl overflow-hidden border shadow-lg">
               <img
                 src={deck.coverImage}
                 alt={deck.title}
@@ -429,7 +425,7 @@ const DeckPage = () => {
           </div>
         ) : (
           <div className="w-full md:w-1/3 lg:w-1/4">
-            <div className="relative aspect-video md:aspect-square rounded-xl overflow-hidden border bg-gradient-to-r from-primary/30 to-accent/30 flex items-center justify-center">
+            <div className="relative aspect-video md:aspect-square rounded-xl overflow-hidden border bg-gradient-to-r from-primary/30 to-accent/30 flex items-center justify-center shadow-lg">
               <BookOpen className="h-16 w-16 text-primary/50" />
               <div className="absolute bottom-4 left-4">
                 {deck.isPublic ? (
@@ -450,9 +446,9 @@ const DeckPage = () => {
           <div className="flex items-start justify-between">
             <h1 className="text-3xl font-bold mb-2">{deck.title}</h1>
             {isOwner && (
-              <Button variant="ghost" size="icon" asChild>
+              <Button variant="ghost" size="icon" asChild className="text-primary hover:text-primary/80 hover:bg-primary/10">
                 <Link to={`/deck/${id}/edit`}>
-                  <Edit className="h-4 w-4" />
+                  <Edit className="h-5 w-5" />
                 </Link>
               </Button>
             )}
@@ -464,33 +460,33 @@ const DeckPage = () => {
           
           <div className="flex flex-wrap gap-2 mb-4">
             {deck.tags.map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
+              <Badge key={tag} variant="secondary" className="text-xs bg-secondary/50">
                 {tag}
               </Badge>
             ))}
           </div>
           
           <div className="flex gap-2 mb-6">
-            <Button asChild>
+            <Button asChild className="bg-primary hover:bg-primary/90 text-white shadow-md">
               <Link to={`/deck/${id}/study`}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 Étudier
               </Link>
             </Button>
             
-            <Button variant="outline" onClick={generateShareLink}>
+            <Button variant="outline" onClick={generateShareLink} className="border-primary/20 text-primary hover:bg-primary/10">
               <Share2 className="mr-2 h-4 w-4" />
               Partager
             </Button>
             
             {isOwner && (
               <>
-                <Button variant="outline" onClick={() => setShowThemeDialog(true)}>
+                <Button variant="outline" onClick={() => setShowThemeDialog(true)} className="border-secondary/50 hover:bg-secondary/20">
                   <FolderPlus className="mr-2 h-4 w-4" />
                   Ajouter un thème
                 </Button>
                 
-                <Button variant="outline" onClick={() => setShowCardDialog(true)}>
+                <Button variant="outline" onClick={() => setShowCardDialog(true)} className="border-secondary/50 hover:bg-secondary/20">
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Ajouter une carte
                 </Button>
@@ -501,11 +497,11 @@ const DeckPage = () => {
           <div className="flex items-center text-sm text-muted-foreground">
             <div className="flex items-center">
               <Avatar className="h-6 w-6 mr-2">
-                <AvatarFallback className="text-[10px]">
-                  {user?.name.substring(0, 2).toUpperCase()}
+                <AvatarFallback className="text-[10px] bg-primary/20 text-primary">
+                  {deck.authorId === user?.id ? user?.name.substring(0, 2).toUpperCase() : "AU"}
                 </AvatarFallback>
               </Avatar>
-              <span>{user?.name}</span>
+              <span>{deck.authorId === user?.id ? user?.name : "Autre utilisateur"}</span>
             </div>
             <Separator orientation="vertical" className="mx-2 h-4" />
             <div className="flex items-center">
@@ -521,10 +517,10 @@ const DeckPage = () => {
         </div>
       </div>
       
-      <Tabs defaultValue="cards">
-        <TabsList className="mb-6">
-          <TabsTrigger value="cards">Toutes les cartes</TabsTrigger>
-          <TabsTrigger value="themes">Thèmes</TabsTrigger>
+      <Tabs defaultValue="cards" className="mt-8">
+        <TabsList className="mb-6 bg-secondary/20">
+          <TabsTrigger value="cards" className="data-[state=active]:bg-primary data-[state=active]:text-white">Toutes les cartes</TabsTrigger>
+          <TabsTrigger value="themes" className="data-[state=active]:bg-primary data-[state=active]:text-white">Thèmes</TabsTrigger>
         </TabsList>
         
         <TabsContent value="cards" className="mt-0">
@@ -632,7 +628,6 @@ const DeckPage = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Add Theme Dialog */}
       <Dialog open={showThemeDialog} onOpenChange={setShowThemeDialog}>
         <DialogContent>
           <DialogHeader>
@@ -696,7 +691,6 @@ const DeckPage = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Add Card Dialog */}
       <Dialog open={showCardDialog} onOpenChange={setShowCardDialog}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -727,7 +721,6 @@ const DeckPage = () => {
             )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Front of the card */}
               <div className="space-y-4 border p-4 rounded-lg">
                 <h3 className="font-medium">Recto de la carte</h3>
                 
@@ -781,7 +774,6 @@ const DeckPage = () => {
                 </div>
               </div>
               
-              {/* Back of the card */}
               <div className="space-y-4 border p-4 rounded-lg">
                 <h3 className="font-medium">Verso de la carte</h3>
                 
@@ -849,7 +841,6 @@ const DeckPage = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Share Dialog */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
         <DialogContent>
           <DialogHeader>
