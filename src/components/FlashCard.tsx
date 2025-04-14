@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Volume } from "lucide-react";
@@ -71,10 +72,10 @@ const FlashCard = ({
       <div className="flashcard-inner w-full h-full relative">
         <div 
           ref={frontRef}
-          className="flashcard-front bg-card rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4"
+          className="flashcard-front bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-sm rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4 border border-white/20"
         >
           {front.image && (
-            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4">
+            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4 border border-white/20 shadow-md">
               <img
                 src={front.image}
                 alt="Front side"
@@ -86,7 +87,7 @@ const FlashCard = ({
           {front.audio && (
             <button
               onClick={(e) => playAudio(front.audio!, e)}
-              className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors backdrop-blur-sm"
             >
               <Volume className="h-5 w-5" />
             </button>
@@ -94,10 +95,10 @@ const FlashCard = ({
         </div>
         <div 
           ref={backRef}
-          className="flashcard-back bg-card rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4"
+          className="flashcard-back bg-gradient-to-br from-accent/20 to-secondary/20 backdrop-blur-sm rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4 border border-white/20"
         >
           {back.image && (
-            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4">
+            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4 border border-white/20 shadow-md">
               <img
                 src={back.image}
                 alt="Back side"
@@ -109,7 +110,7 @@ const FlashCard = ({
           {back.audio && (
             <button
               onClick={(e) => playAudio(back.audio!, e)}
-              className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors backdrop-blur-sm"
             >
               <Volume className="h-5 w-5" />
             </button>
