@@ -50,60 +50,106 @@ const App = () => {
         <BrowserRouter>
           <div className="min-h-screen flex flex-col">
             <Routes>
+              {/* Public routes without Navbar/Footer */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/" element={<Index />} />
               
               {/* Protected routes with Navbar and Footer */}
-              <Route path="/" element={
-                <>
-                  <Navbar />
-                  <main className="flex-1">
-                    <Routes>
-                      <Route path="/home" element={
-                        <ProtectedRoute>
-                          <HomePage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/explore" element={
-                        <ProtectedRoute>
-                          <ExplorePage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/create" element={
-                        <ProtectedRoute>
-                          <CreatePage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/profile" element={
-                        <ProtectedRoute>
-                          <ProfilePage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/deck/:id" element={
-                        <ProtectedRoute>
-                          <DeckPage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/deck/:deckId/theme/:themeId" element={
-                        <ProtectedRoute>
-                          <ThemePage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/deck/:id/study" element={
-                        <ProtectedRoute>
-                          <StudyPage />
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/import/:code" element={
-                        <ProtectedRoute>
-                          <ImportPage />
-                        </ProtectedRoute>
-                      } />
-                    </Routes>
-                  </main>
-                  <Footer />
-                </>
-              }/>
+              <Route path="/home" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <HomePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/explore" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ExplorePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/create" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <CreatePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ProfilePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:id" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <DeckPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:deckId/theme/:themeId" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ThemePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:id/study" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <StudyPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/import/:code" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ImportPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
