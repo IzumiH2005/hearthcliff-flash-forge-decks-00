@@ -14,17 +14,25 @@ import {
   Settings,
   ThumbsUp,
   ThumbsDown,
-  Volume
+  Volume,
+  ZoomIn,
+  ZoomOut,
+  Send,
+  AlertCircle
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import FlashCard from "@/components/FlashCard";
 
 import { 
@@ -36,6 +44,8 @@ import {
   Deck,
   Theme
 } from "@/lib/localStorage";
+
+import { evaluateAnswer } from "@/services/geminiService";
 
 const StudyPage = () => {
   const { id, themeId } = useParams<{ id: string; themeId?: string }>();
@@ -57,6 +67,11 @@ const StudyPage = () => {
   const [knownCards, setKnownCards] = useState<string[]>([]);
   const [studyHistory, setStudyHistory] = useState<Array<{ id: string; known: boolean }>>([]);
   const [autoPlayAudio, setAutoPlayAudio] = useState(true);
+  const [userAnswer, setUserAnswer] = useState("");
+  const [answerFeedback, setAnswerFeedback] = useState<{ score: number; feedback: string } | null>(null);
+  const [isEvaluating, setIsEvaluating] = useState(false);
+  const [useAiEvaluation, setUseAiEvaluation] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(100);
   
   const autoFlipTimer = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -243,6 +258,73 @@ const StudyPage = () => {
     }
   };
   
+  const handleEvaluateAnswer = async () => {
+    if (!isFlipped && userAnswer.trim()) {
+      setIsEvaluating(true);
+      
+      try {
+        if (useAiEvaluation) {
+          const feedback = await evaluateAnswer(
+            userAnswer,
+            flashcards[currentIndex].back.text
+          );
+          
+          setAnswerFeedback(feedback);
+          
+          if (feedback.score > 0.8) {
+            if (!knownCards.includes(flashcards[currentIndex].id)) {
+              setKnownCards([...knownCards, flashcards[currentIndex].id]);
+            }
+            setStudyHistory([...studyHistory, { id: flashcards[currentIndex].id, known: true }]);
+          } else if (feedback.score < 0.3) {
+            setKnownCards(knownCards.filter(id => id !== flashcards[currentIndex].id));
+            setStudyHistory([...studyHistory, { id: flashcards[currentIndex].id, known: false }]);
+          }
+        }
+        
+        setIsFlipped(true);
+      } catch (error) {
+        console.error("Error evaluating answer:", error);
+        toast({
+          title: "Erreur d'évaluation",
+          description: "Impossible d'évaluer votre réponse pour le moment.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsEvaluating(false);
+      }
+    } else {
+      handleCardFlip();
+    }
+  };
+  
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleEvaluateAnswer();
+    }
+  };
+  
+  const handleNextWithReset = () => {
+    setUserAnswer("");
+    setAnswerFeedback(null);
+    handleNextCard();
+  };
+  
+  const handlePrevWithReset = () => {
+    setUserAnswer("");
+    setAnswerFeedback(null);
+    handlePrevCard();
+  };
+  
+  const handleZoomIn = () => {
+    setZoomLevel(prev => Math.min(prev + 10, 150));
+  };
+  
+  const handleZoomOut = () => {
+    setZoomLevel(prev => Math.max(prev - 10, 70));
+  };
+  
   if (isLoading) {
     return (
       <div className="container px-4 py-8 flex items-center justify-center h-64">
@@ -300,9 +382,18 @@ const StudyPage = () => {
           Retour au {themeId ? "thème" : "deck"}
         </Link>
         
-        <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)}>
-          <Settings className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={handleZoomOut} disabled={zoomLevel <= 70}>
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground">{zoomLevel}%</span>
+          <Button variant="ghost" size="icon" onClick={handleZoomIn} disabled={zoomLevel >= 150}>
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)}>
+            <Settings className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
       
       <div className="mb-8">
@@ -317,8 +408,8 @@ const StudyPage = () => {
         <Progress value={progress} className="h-2" />
       </div>
       
-      <div className="flex justify-center mb-6">
-        <div className="w-full max-w-2xl h-80">
+      <div className="flex justify-center mb-6" style={{ transform: `scale(${zoomLevel / 100})`, transition: 'transform 0.3s ease' }}>
+        <div className="w-full max-w-2xl">
           {flashcards[currentIndex] && (
             <FlashCard
               id={flashcards[currentIndex].id}
@@ -331,24 +422,94 @@ const StudyPage = () => {
         </div>
       </div>
       
+      {!isFlipped && (
+        <div className="mb-6">
+          <div className="flex flex-col space-y-2">
+            <Label htmlFor="answer">Votre réponse :</Label>
+            <div className="flex gap-2">
+              <Textarea
+                id="answer"
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Saisissez votre réponse..."
+                className="flex-1 resize-none min-h-[100px]"
+              />
+              <Button 
+                className="self-end"
+                onClick={handleEvaluateAnswer}
+                disabled={isEvaluating}
+              >
+                {isEvaluating ? (
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                ) : (
+                  <>
+                    <Send className="h-4 w-4 mr-2" />
+                    Vérifier
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {isFlipped && answerFeedback && (
+        <Card className={`mb-6 ${
+          answerFeedback.score > 0.8 
+            ? "border-green-500 bg-green-50 dark:bg-green-950/20" 
+            : answerFeedback.score < 0.3 
+              ? "border-red-500 bg-red-50 dark:bg-red-950/20" 
+              : "border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
+        }`}>
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-2">
+              {answerFeedback.score > 0.8 ? (
+                <Check className="h-5 w-5 text-green-500 mt-0.5" />
+              ) : answerFeedback.score < 0.3 ? (
+                <X className="h-5 w-5 text-red-500 mt-0.5" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-yellow-500 mt-0.5" />
+              )}
+              <div>
+                <Badge variant={answerFeedback.score > 0.8 ? "success" : answerFeedback.score < 0.3 ? "destructive" : "warning"} className="mb-2">
+                  {answerFeedback.score > 0.8 
+                    ? "Correct" 
+                    : answerFeedback.score < 0.3 
+                      ? "Incorrect" 
+                      : "Partiellement correct"}
+                </Badge>
+                <p className="text-sm">{answerFeedback.feedback}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       <div className="flex justify-center gap-3 mb-6">
         <Button 
           variant="outline" 
           size="icon"
-          onClick={handlePrevCard}
+          onClick={handlePrevWithReset}
           disabled={currentIndex === 0}
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
         
-        <Button variant="outline" onClick={handleCardFlip}>
-          {isFlipped ? "Voir le recto" : "Voir le verso"}
-        </Button>
+        {!isFlipped ? (
+          <Button variant="outline" onClick={handleCardFlip}>
+            Voir la réponse
+          </Button>
+        ) : (
+          <Button variant="outline" onClick={handleCardFlip}>
+            Voir la question
+          </Button>
+        )}
         
         <Button 
           variant="outline" 
           size="icon"
-          onClick={handleNextCard}
+          onClick={handleNextWithReset}
         >
           <ChevronRight className="h-5 w-5" />
         </Button>
@@ -487,6 +648,20 @@ const StudyPage = () => {
                 id="auto-play-audio"
                 checked={autoPlayAudio}
                 onCheckedChange={setAutoPlayAudio}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="ai-evaluation">Évaluation par IA</Label>
+                <p className="text-xs text-muted-foreground">
+                  Utilise l'IA pour évaluer vos réponses
+                </p>
+              </div>
+              <Switch
+                id="ai-evaluation"
+                checked={useAiEvaluation}
+                onCheckedChange={setUseAiEvaluation}
               />
             </div>
           </div>

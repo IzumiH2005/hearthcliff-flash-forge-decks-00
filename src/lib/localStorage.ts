@@ -1,4 +1,3 @@
-
 // Types
 export interface User {
   id: string;
@@ -97,12 +96,13 @@ export const updateUser = (userData: Partial<User>): User | null => {
 
 // Deck functions
 export const getDecks = (): Deck[] => {
-  return getItem<Deck[]>(STORAGE_KEYS.DECKS, []);
+  const decksJSON = localStorage.getItem('decks');
+  return decksJSON ? JSON.parse(decksJSON) : [];
 };
 
-export const getDeck = (id: string): Deck | undefined => {
+export const getDeck = (id: string): Deck | null => {
   const decks = getDecks();
-  return decks.find(deck => deck.id === id);
+  return decks.find(deck => deck.id === id) || null;
 };
 
 export const createDeck = (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>): Deck => {
@@ -364,156 +364,21 @@ export const initializeDefaultUser = (): User => {
 };
 
 // Sample data generator for demo
-export const generateSampleData = () => {
-  const user = initializeDefaultUser();
+export const generateSampleData = (): void => {
+  // Only initialize empty collections if they don't exist yet
+  if (!localStorage.getItem('decks')) {
+    localStorage.setItem('decks', JSON.stringify([]));
+  }
   
-  // Check if we already have sample data
-  if (getDecks().length > 0) return;
+  if (!localStorage.getItem('themes')) {
+    localStorage.setItem('themes', JSON.stringify([]));
+  }
   
-  // Sample decks
-  const sampleDecks: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    {
-      title: "Vocabulaire Anglais Basique",
-      description: "Un ensemble de cartes pour apprendre le vocabulaire anglais de base",
-      authorId: user.id,
-      isPublic: true,
-      tags: ["anglais", "vocabulaire", "débutant"],
-      coverImage: "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?w=500&auto=format"
-    },
-    {
-      title: "Capitales du Monde",
-      description: "Apprenez les capitales des pays du monde entier",
-      authorId: user.id,
-      isPublic: true,
-      tags: ["géographie", "capitales", "monde"],
-      coverImage: "https://images.unsplash.com/photo-1526778548025-fa2f459cd5ce?w=500&auto=format"
-    },
-    {
-      title: "Formules Mathématiques",
-      description: "Les formules mathématiques essentielles pour le lycée",
-      authorId: user.id,
-      isPublic: true,
-      tags: ["mathématiques", "formules", "lycée"],
-      coverImage: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=500&auto=format"
-    }
-  ];
+  if (!localStorage.getItem('flashcards')) {
+    localStorage.setItem('flashcards', JSON.stringify([]));
+  }
   
-  // Create sample decks
-  const createdDecks = sampleDecks.map(deck => createDeck(deck));
-  
-  // Create themes for the English vocabulary deck
-  const englishDeck = createdDecks[0];
-  const englishThemes: Omit<Theme, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    {
-      deckId: englishDeck.id,
-      title: "Aliments",
-      description: "Vocabulaire lié à la nourriture et aux repas",
-      coverImage: "https://images.unsplash.com/photo-1606787366850-de6330128bfc?w=500&auto=format"
-    },
-    {
-      deckId: englishDeck.id,
-      title: "Transports",
-      description: "Termes liés aux différents moyens de transport",
-      coverImage: "https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?w=500&auto=format"
-    },
-    {
-      deckId: englishDeck.id,
-      title: "Maison",
-      description: "Tout le vocabulaire pour décrire une maison et ses pièces",
-      coverImage: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=500&auto=format"
-    }
-  ];
-  
-  // Create sample themes
-  const createdThemes = englishThemes.map(theme => createTheme(theme));
-  
-  // Create flashcards for the food theme
-  const foodTheme = createdThemes[0];
-  const foodCards: Omit<Flashcard, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    {
-      deckId: englishDeck.id,
-      themeId: foodTheme.id,
-      front: { text: "Apple" },
-      back: { text: "Pomme", image: "https://images.unsplash.com/photo-1570913149827-d2ac84ab3f9a?w=500&auto=format" }
-    },
-    {
-      deckId: englishDeck.id,
-      themeId: foodTheme.id,
-      front: { text: "Bread" },
-      back: { text: "Pain", image: "https://images.unsplash.com/photo-1549931319-a545dcf3bc7b?w=500&auto=format" }
-    },
-    {
-      deckId: englishDeck.id,
-      themeId: foodTheme.id,
-      front: { text: "Cheese" },
-      back: { text: "Fromage", image: "https://images.unsplash.com/photo-1566454419290-57a64afe30ac?w=500&auto=format" }
-    },
-    {
-      deckId: englishDeck.id,
-      themeId: foodTheme.id,
-      front: { text: "Drink" },
-      back: { text: "Boisson" }
-    },
-    {
-      deckId: englishDeck.id,
-      themeId: foodTheme.id,
-      front: { text: "Egg" },
-      back: { text: "Œuf", image: "https://images.unsplash.com/photo-1607690424560-38fad6ae8fcc?w=500&auto=format" }
-    }
-  ];
-  
-  // Create flashcards for the other themes and decks
-  const transportTheme = createdThemes[1];
-  const transportCards: Omit<Flashcard, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    {
-      deckId: englishDeck.id,
-      themeId: transportTheme.id,
-      front: { text: "Car" },
-      back: { text: "Voiture", image: "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?w=500&auto=format" }
-    },
-    {
-      deckId: englishDeck.id,
-      themeId: transportTheme.id,
-      front: { text: "Bicycle" },
-      back: { text: "Vélo", image: "https://images.unsplash.com/photo-1485965120184-e220f721d03e?w=500&auto=format" }
-    },
-    {
-      deckId: englishDeck.id,
-      themeId: transportTheme.id,
-      front: { text: "Train" },
-      back: { text: "Train", image: "https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=500&auto=format" }
-    }
-  ];
-  
-  // Create some capitals flashcards for the second deck
-  const capitalsCards: Omit<Flashcard, 'id' | 'createdAt' | 'updatedAt'>[] = [
-    {
-      deckId: createdDecks[1].id,
-      front: { text: "France" },
-      back: { text: "Paris", image: "https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=500&auto=format" }
-    },
-    {
-      deckId: createdDecks[1].id,
-      front: { text: "Japon" },
-      back: { text: "Tokyo", image: "https://images.unsplash.com/photo-1490806843957-31f4c9a91c65?w=500&auto=format" }
-    },
-    {
-      deckId: createdDecks[1].id,
-      front: { text: "Italie" },
-      back: { text: "Rome", image: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=500&auto=format" }
-    },
-    {
-      deckId: createdDecks[1].id,
-      front: { text: "Espagne" },
-      back: { text: "Madrid", image: "https://images.unsplash.com/photo-1543783207-ec64e4d95325?w=500&auto=format" }
-    },
-    {
-      deckId: createdDecks[1].id,
-      front: { text: "Royaume-Uni" },
-      back: { text: "Londres", image: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=500&auto=format" }
-    }
-  ];
-  
-  // Create all flashcards
-  [...foodCards, ...transportCards, ...capitalsCards].forEach(card => createFlashcard(card));
+  if (!localStorage.getItem('users')) {
+    localStorage.setItem('users', JSON.stringify([]));
+  }
 };

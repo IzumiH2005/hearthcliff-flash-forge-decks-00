@@ -235,18 +235,18 @@ const EditDeckPage = () => {
       </Link>
       
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Modifier le deck</h1>
+        <h1 className="text-3xl font-bold bg-gradient-to-br from-indigo-600 to-purple-600 bg-clip-text text-transparent">Modifier le deck</h1>
         <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
           <Trash2 className="mr-2 h-4 w-4" />
           Supprimer le deck
         </Button>
       </div>
       
-      <Card className="max-w-4xl mx-auto">
-        <CardHeader>
+      <Card className="max-w-4xl mx-auto shadow-md border-indigo-100 dark:border-indigo-900/30">
+        <CardHeader className="bg-gradient-to-r from-indigo-100/50 to-purple-100/50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-t-lg">
           <CardTitle>Informations générales</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 pt-6">
           <div className="space-y-2">
             <Label htmlFor="title">Titre</Label>
             <Input
@@ -254,6 +254,7 @@ const EditDeckPage = () => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Titre du deck"
+              className="border-indigo-200 dark:border-indigo-800/30 focus-visible:ring-indigo-500"
             />
           </div>
           
@@ -265,6 +266,7 @@ const EditDeckPage = () => {
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Description du deck"
               rows={4}
+              className="border-indigo-200 dark:border-indigo-800/30 focus-visible:ring-indigo-500 resize-none"
             />
           </div>
           
@@ -272,7 +274,7 @@ const EditDeckPage = () => {
             <Label>Image de couverture</Label>
             <div className="flex flex-col space-y-4">
               {coverImage ? (
-                <div className="relative aspect-video w-full md:w-2/3 rounded-md overflow-hidden border">
+                <div className="relative aspect-video w-full md:w-2/3 rounded-md overflow-hidden border border-indigo-200 dark:border-indigo-800/30 shadow-md">
                   <img
                     src={coverImage}
                     alt="Cover"
@@ -289,10 +291,10 @@ const EditDeckPage = () => {
                 </div>
               ) : (
                 <div 
-                  className="aspect-video w-full md:w-2/3 border-2 border-dashed rounded-md flex flex-col items-center justify-center cursor-pointer hover:bg-secondary/20 transition-colors"
+                  className="aspect-video w-full md:w-2/3 border-2 border-dashed border-indigo-200 dark:border-indigo-800/30 rounded-md flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Upload className="h-10 w-10 text-muted-foreground mb-2" />
+                  <Upload className="h-10 w-10 text-indigo-400 mb-2" />
                   <p className="text-sm text-muted-foreground">Cliquez pour ajouter une image</p>
                 </div>
               )}
@@ -309,16 +311,19 @@ const EditDeckPage = () => {
             </div>
           </div>
           
-          <Separator />
+          <Separator className="bg-indigo-100 dark:bg-indigo-800/20" />
           
           <div className="space-y-4">
-            <Label>Tags</Label>
+            <Label className="flex items-center gap-2">
+              <Tags className="h-4 w-4" />
+              Tags
+            </Label>
             <div className="flex flex-wrap gap-2 mb-2">
               {tags.map((tag) => (
-                <Badge key={tag} className="flex items-center gap-1 px-3 py-1">
+                <Badge key={tag} className="flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200 hover:bg-indigo-200 dark:hover:bg-indigo-800">
                   {tag}
                   <button
-                    className="ml-1 h-4 w-4 rounded-full flex items-center justify-center hover:bg-primary/20"
+                    className="ml-1 h-4 w-4 rounded-full flex items-center justify-center hover:bg-indigo-200 dark:hover:bg-indigo-700"
                     onClick={() => handleRemoveTag(tag)}
                   >
                     <X className="h-3 w-3" />
@@ -340,8 +345,9 @@ const EditDeckPage = () => {
                     handleAddTag();
                   }
                 }}
+                className="border-indigo-200 dark:border-indigo-800/30 focus-visible:ring-indigo-500"
               />
-              <Button onClick={handleAddTag}>
+              <Button onClick={handleAddTag} className="bg-indigo-500 hover:bg-indigo-600">
                 <Plus className="h-4 w-4 mr-1" />
                 Ajouter
               </Button>
@@ -351,7 +357,7 @@ const EditDeckPage = () => {
             </p>
           </div>
           
-          <Separator />
+          <Separator className="bg-indigo-100 dark:bg-indigo-800/20" />
           
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
@@ -365,6 +371,7 @@ const EditDeckPage = () => {
                 id="public-switch"
                 checked={isPublic}
                 onCheckedChange={setIsPublic}
+                className="data-[state=checked]:bg-indigo-500"
               />
               {isPublic ? (
                 <Globe className="h-4 w-4 text-green-500" />
@@ -375,11 +382,11 @@ const EditDeckPage = () => {
           </div>
         </CardContent>
         
-        <CardFooter className="flex justify-end space-x-2">
-          <Button variant="outline" asChild>
+        <CardFooter className="flex justify-end space-x-2 pt-4 pb-4 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/10 rounded-b-lg">
+          <Button variant="outline" asChild className="border-indigo-200 dark:border-indigo-800/30">
             <Link to={`/deck/${id}`}>Annuler</Link>
           </Button>
-          <Button onClick={handleSave}>
+          <Button onClick={handleSave} className="bg-indigo-500 hover:bg-indigo-600">
             <Save className="mr-2 h-4 w-4" />
             Enregistrer
           </Button>

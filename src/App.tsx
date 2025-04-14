@@ -39,7 +39,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 const App = () => {
   useEffect(() => {
-    // Initialize sample data on first load
+    // Initialize storage structure on first load
     generateSampleData();
   }, []);
 
@@ -49,7 +49,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <div className="min-h-screen flex flex-col">
+          <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/20 dark:to-purple-950/20">
             <Routes>
               {/* Public routes without Navbar/Footer */}
               <Route path="/login" element={<LoginPage />} />

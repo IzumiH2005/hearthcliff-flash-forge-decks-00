@@ -72,10 +72,10 @@ const FlashCard = ({
       <div className="flashcard-inner w-full h-full relative">
         <div 
           ref={frontRef}
-          className="flashcard-front bg-gradient-to-br from-primary/20 to-secondary/20 backdrop-blur-sm rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4 border border-white/20"
+          className="flashcard-front bg-gradient-to-br from-indigo-500/20 to-purple-500/20 backdrop-blur-sm rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4 border border-indigo-200/40 dark:border-indigo-800/40"
         >
           {front.image && (
-            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4 border border-white/20 shadow-md">
+            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4 border border-indigo-200/40 dark:border-indigo-800/40 shadow-md">
               <img
                 src={front.image}
                 alt="Front side"
@@ -87,7 +87,7 @@ const FlashCard = ({
           {front.audio && (
             <button
               onClick={(e) => playAudio(front.audio!, e)}
-              className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors backdrop-blur-sm"
+              className="absolute bottom-3 right-3 p-2 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30 transition-colors backdrop-blur-sm"
             >
               <Volume className="h-5 w-5" />
             </button>
@@ -95,10 +95,10 @@ const FlashCard = ({
         </div>
         <div 
           ref={backRef}
-          className="flashcard-back bg-gradient-to-br from-accent/20 to-secondary/20 backdrop-blur-sm rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4 border border-white/20"
+          className="flashcard-back bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm rounded-xl p-6 shadow-md flex flex-col items-center justify-center gap-4 border border-purple-200/40 dark:border-purple-800/40"
         >
           {back.image && (
-            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4 border border-white/20 shadow-md">
+            <div className="w-full max-h-48 overflow-hidden rounded-lg mb-4 border border-purple-200/40 dark:border-purple-800/40 shadow-md">
               <img
                 src={back.image}
                 alt="Back side"
@@ -110,7 +110,7 @@ const FlashCard = ({
           {back.audio && (
             <button
               onClick={(e) => playAudio(back.audio!, e)}
-              className="absolute bottom-3 right-3 p-2 rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors backdrop-blur-sm"
+              className="absolute bottom-3 right-3 p-2 rounded-full bg-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/30 transition-colors backdrop-blur-sm"
             >
               <Volume className="h-5 w-5" />
             </button>
@@ -118,6 +118,41 @@ const FlashCard = ({
         </div>
       </div>
       <audio ref={audioRef} className="hidden" />
+      
+      <style jsx>{`
+        .flashcard {
+          transition: transform 0.3s;
+        }
+        
+        .perspective-1000 {
+          perspective: 1000px;
+        }
+        
+        .flashcard-inner {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          transition: transform 0.6s;
+          transform-style: preserve-3d;
+        }
+        
+        .flashcard.flipped .flashcard-inner {
+          transform: rotateY(180deg);
+        }
+        
+        .flashcard-front,
+        .flashcard-back {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+        }
+        
+        .flashcard-back {
+          transform: rotateY(180deg);
+        }
+      `}</style>
     </div>
   );
 };
