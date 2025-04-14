@@ -96,8 +96,7 @@ export const updateUser = (userData: Partial<User>): User | null => {
 
 // Deck functions
 export const getDecks = (): Deck[] => {
-  const decksJSON = localStorage.getItem('decks');
-  return decksJSON ? JSON.parse(decksJSON) : [];
+  return getItem<Deck[]>(STORAGE_KEYS.DECKS, []);
 };
 
 export const getDeck = (id: string): Deck | null => {
