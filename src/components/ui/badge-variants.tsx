@@ -25,10 +25,26 @@ export const badgeVariants = cva(
           "border-transparent bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300",
         gradient:
           "border-transparent bg-gradient-to-r from-indigo-500 to-purple-500 text-white",
+        glossy:
+          "border border-white/20 bg-white/10 backdrop-blur-sm text-white shadow-sm",
+        stats:
+          "border-transparent bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 px-3 py-1",
+        new:
+          "animate-pulse border-transparent bg-green-400 text-white dark:bg-green-500 dark:text-white",
+        premium:
+          "border-transparent bg-gradient-to-r from-amber-400 to-yellow-500 text-white font-bold",
+        count:
+          "flex items-center justify-center h-6 min-w-6 rounded-full bg-primary/15 text-primary text-xs font-medium",
+      },
+      size: {
+        default: "px-2.5 py-0.5 text-xs",
+        sm: "px-2 py-0.25 text-xs",
+        lg: "px-3 py-0.75 text-sm",
       },
     },
     defaultVariants: {
       variant: "default",
+      size: "default",
     },
   }
 );

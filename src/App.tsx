@@ -25,6 +25,9 @@ import NotFound from "@/pages/NotFound";
 import ImportPage from "@/pages/ImportPage";
 import LoginPage from "@/pages/LoginPage";
 import Index from "@/pages/Index";
+import LearningMethodsPage from "@/pages/LearningMethodsPage";
+import StatsPage from "@/pages/StatsPage";
+import SharePage from "@/pages/SharePage";
 
 const queryClient = new QueryClient();
 
@@ -158,6 +161,55 @@ const App = () => {
                     <Navbar />
                     <main className="flex-1">
                       <ImportPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/import" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ImportPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              {/* New routes */}
+              <Route path="/learning-methods" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <LearningMethodsPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/stats" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <StatsPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/share" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <SharePage />
                     </main>
                     <Footer />
                   </>
