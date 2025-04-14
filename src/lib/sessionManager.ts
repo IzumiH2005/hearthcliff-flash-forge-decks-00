@@ -3,6 +3,7 @@
 
 // Storage key constant
 const STORAGE_KEY = "cds-flashcard-session-key";
+const USER_DATA_PREFIX = "cds-flashcard-user-";
 
 // Generate a new session key
 export const generateSessionKey = (): string => {
@@ -14,6 +15,8 @@ export const generateSessionKey = (): string => {
 // Save session key to localStorage
 export const saveSessionKey = (key: string): void => {
   localStorage.setItem(STORAGE_KEY, key);
+  // Initialize user data for this session if not already present
+  initializeUserDataForSession(key);
 };
 
 // Get session key from localStorage
@@ -31,19 +34,59 @@ export const hasSession = (): boolean => {
   return !!getSessionKey();
 };
 
+// Verify if session is valid (in a real app this would check against a backend)
+export const verifySession = (): boolean => {
+  const sessionKey = getSessionKey();
+  if (!sessionKey) return false;
+  
+  // In a real app, this would validate the session key with a backend
+  // For this demo, we'll just check if it follows our expected format
+  const isValidFormat = /^[A-Z0-9]{12,14}$/.test(sessionKey);
+  const hasUserData = getUserDataKeys(sessionKey).length > 0;
+  
+  return isValidFormat;
+};
+
+// Initialize user data for a new session
+const initializeUserDataForSession = (sessionKey: string): void => {
+  // Check if this is a new session without data
+  const userDataKeys = getUserDataKeys(sessionKey);
+  if (userDataKeys.length === 0) {
+    // Initialize with empty data structures
+    localStorage.setItem(`${USER_DATA_PREFIX}${sessionKey}_decks`, JSON.stringify([]));
+    localStorage.setItem(`${USER_DATA_PREFIX}${sessionKey}_themes`, JSON.stringify([]));
+    localStorage.setItem(`${USER_DATA_PREFIX}${sessionKey}_flashcards`, JSON.stringify([]));
+    localStorage.setItem(`${USER_DATA_PREFIX}${sessionKey}_profile`, JSON.stringify({
+      name: "Utilisateur",
+      createdAt: new Date().toISOString()
+    }));
+    
+    console.log(`New session initialized: ${sessionKey}`);
+  } else {
+    console.log(`Existing session loaded: ${sessionKey}`);
+  }
+};
+
+// Get all localStorage keys associated with a session
+const getUserDataKeys = (sessionKey: string): string[] => {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(`${USER_DATA_PREFIX}${sessionKey}`)) {
+      keys.push(key);
+    }
+  }
+  return keys;
+};
+
 // Link user data to session key
 // This function associates all user data with their session key
-// In a real app, this would involve server communication
 export const linkUserDataToSession = (sessionKey: string): void => {
   // In a real-world scenario, this would be handled by a backend service
   // For now, we're using localStorage as our "database"
   
-  // Update all user-related localStorage items with the session key prefix
-  // This is a simplified approach for the demo
-  const userPrefix = `user_${sessionKey}_`;
-  
-  // We would typically have APIs to sync this data with a backend
-  // For now, we're just making sure localStorage is properly keyed
+  // Make sure the session is initialized
+  initializeUserDataForSession(sessionKey);
   
   console.log(`User data linked to session: ${sessionKey}`);
 };
@@ -51,17 +94,28 @@ export const linkUserDataToSession = (sessionKey: string): void => {
 // Export session data for backup
 export const exportSessionData = (): string => {
   // In a real app, this would gather all user data and create an export
-  // For now, we just return the session key itself
   const sessionKey = getSessionKey();
   if (!sessionKey) {
     return "";
   }
   
-  // A real implementation would collect all user data
+  // Collect all user data for this session
   const exportData = {
     sessionKey,
     exportDate: new Date().toISOString(),
+    userData: {}
   };
+  
+  // Get all data keys for this session
+  const userDataKeys = getUserDataKeys(sessionKey);
+  userDataKeys.forEach(key => {
+    const dataKey = key.replace(`${USER_DATA_PREFIX}${sessionKey}_`, '');
+    const dataValue = localStorage.getItem(key);
+    if (dataValue) {
+      // @ts-ignore
+      exportData.userData[dataKey] = JSON.parse(dataValue);
+    }
+  });
   
   return JSON.stringify(exportData);
 };
@@ -70,11 +124,24 @@ export const exportSessionData = (): string => {
 export const importSessionData = (data: string): boolean => {
   try {
     const importData = JSON.parse(data);
-    if (importData.sessionKey) {
-      saveSessionKey(importData.sessionKey);
-      return true;
+    if (!importData.sessionKey) {
+      return false;
     }
-    return false;
+    
+    const sessionKey = importData.sessionKey;
+    
+    // Save the session key first
+    saveSessionKey(sessionKey);
+    
+    // Import all user data
+    if (importData.userData) {
+      Object.entries(importData.userData).forEach(([key, value]) => {
+        localStorage.setItem(`${USER_DATA_PREFIX}${sessionKey}_${key}`, JSON.stringify(value));
+      });
+    }
+    
+    console.log(`Session data imported successfully: ${sessionKey}`);
+    return true;
   } catch (error) {
     console.error("Failed to import session data:", error);
     return false;
