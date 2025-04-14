@@ -3,13 +3,14 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, LineChart, PieChart } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { getSessionKey } from "@/lib/sessionManager";
 import { getFlashcards, getDecks, getThemes } from "@/lib/localStorage";
 import { Calendar, CalendarDays, Clock, Zap, TrendingUp, Medal, BookOpen, BrainCircuit, BarChart4 } from "lucide-react";
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 
 const StatsPage = () => {
   const [periodFilter, setPeriodFilter] = useState<"week" | "month" | "year">("week");
@@ -101,6 +102,23 @@ const StatsPage = () => {
     { name: "Histoire", value: 10 },
     { name: "Autre", value: 10 },
   ];
+
+  // Chart configuration
+  const chartConfig = {
+    minutes: {
+      label: "Minutes",
+      color: "#6366f1",
+    },
+    score: {
+      label: "Score",
+      color: "#9333ea", 
+    },
+    value: {
+      color: "#8b5cf6",
+    },
+  };
+
+  const COLORS = ["#6366f1", "#9333ea", "#d946ef", "#a855f7", "#64748b"];
 
   return (
     <div className="container max-w-6xl px-4 py-8">
@@ -194,14 +212,17 @@ const StatsPage = () => {
                   <CardDescription>Minutes d'étude par jour</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <BarChart
-                    data={activityData[periodFilter]}
-                    index="name"
-                    categories={["minutes"]}
-                    colors={["indigo"]}
-                    valueFormatter={(value) => `${value} min`}
-                    className="aspect-[4/3]"
-                  />
+                  <ChartContainer config={chartConfig} className="aspect-[4/3]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={activityData[periodFilter]}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="minutes" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -241,14 +262,17 @@ const StatsPage = () => {
                   <CardDescription>Pourcentage de réponses correctes</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <LineChart
-                    data={performanceData[periodFilter]}
-                    index="name"
-                    categories={["score"]}
-                    colors={["purple"]}
-                    valueFormatter={(value) => `${value}%`}
-                    className="aspect-[4/3]"
-                  />
+                  <ChartContainer config={chartConfig} className="aspect-[4/3]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={performanceData[periodFilter]}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis domain={[0, 100]} />
+                        <Tooltip content={<ChartTooltipContent />} />
+                        <Line type="monotone" dataKey="score" stroke="#9333ea" strokeWidth={2} dot={{ r: 4 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -260,16 +284,27 @@ const StatsPage = () => {
                   <CardDescription>Temps consacré à chaque sujet</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[300px]">
-                    <PieChart
-                      data={subjectDistributionData}
-                      index="name"
-                      category="value"
-                      valueFormatter={(value) => `${value}%`}
-                      colors={["indigo", "violet", "fuchsia", "purple", "slate"]}
-                      className="h-full"
-                    />
-                  </div>
+                  <ChartContainer config={chartConfig} className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={subjectDistributionData}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {subjectDistributionData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<ChartTooltipContent />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
                 </CardContent>
               </Card>
             </TabsContent>
