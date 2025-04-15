@@ -1,3 +1,4 @@
+
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -8,7 +9,7 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import React from "react";
 import { BookOpen, Lightbulb, Settings, Share2, TrendingUp, Folder } from "lucide-react";
 import { hasSession } from "@/lib/sessionManager";
@@ -64,6 +65,8 @@ const resourcesItems: NavItem[] = [
 ];
 
 export function AppNavigationMenu() {
+  const location = useLocation();
+  
   // Don't render navigation menu if user is not logged in
   if (!hasSession()) {
     return null;
@@ -82,6 +85,7 @@ export function AppNavigationMenu() {
                   title={resource.title}
                   href={resource.href}
                   icon={resource.icon}
+                  isActive={location.pathname === resource.href}
                 >
                   {resource.description}
                 </ListItem>
@@ -100,6 +104,7 @@ export function AppNavigationMenu() {
                   title={resource.title}
                   href={resource.href}
                   icon={resource.icon}
+                  isActive={location.pathname === resource.href}
                 >
                   {resource.description}
                 </ListItem>
@@ -110,7 +115,11 @@ export function AppNavigationMenu() {
         
         <NavigationMenuItem>
           <Link to="/create">
-            <NavigationMenuLink className={cn(navigationMenuTriggerStyle(), "bg-transparent")}>
+            <NavigationMenuLink className={cn(
+              navigationMenuTriggerStyle(), 
+              "bg-transparent",
+              location.pathname === "/create" && "bg-accent text-accent-foreground"
+            )}>
               Créer
             </NavigationMenuLink>
           </Link>
@@ -122,14 +131,18 @@ export function AppNavigationMenu() {
 
 const ListItem = React.forwardRef<
   React.ElementRef<"a">,
-  React.ComponentPropsWithoutRef<"a"> & { icon?: React.ReactNode }
->(({ className, title, icon, children, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<"a"> & { 
+    icon?: React.ReactNode;
+    isActive?: boolean;
+  }
+>(({ className, title, icon, children, isActive, ...props }, ref) => {
   return (
     <li>
       <Link
         to={props.href || "#"}
         className={cn(
-          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors",
+          isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent hover:text-accent-foreground",
           className
         )}
         {...props}

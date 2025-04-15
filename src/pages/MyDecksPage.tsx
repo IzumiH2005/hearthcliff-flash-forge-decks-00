@@ -16,7 +16,9 @@ const MyDecksPage = () => {
 
   // Fonction pour rafraîchir la liste des decks
   const refreshDecks = () => {
-    const userDecks = getDecks().filter(deck => deck.authorId === user?.id);
+    // Ensure we get the latest user
+    const currentUser = getUser();
+    const userDecks = getDecks().filter(deck => deck.authorId === currentUser?.id);
     setDecks(userDecks);
     toast({
       title: "Liste mise à jour",
@@ -25,10 +27,25 @@ const MyDecksPage = () => {
   };
 
   useEffect(() => {
+    // Always get the latest user when the component mounts or updates
+    const currentUser = getUser();
     // Filtrer uniquement les decks de l'utilisateur connecté
-    const userDecks = getDecks().filter(deck => deck.authorId === user?.id);
+    const userDecks = getDecks().filter(deck => deck.authorId === currentUser?.id);
     setDecks(userDecks);
-  }, [user?.id, location.key]); // Ajout de location.key pour rafraîchir lors de la navigation
+  }, [location.key]); // React to navigation changes
+
+  // Add a forceful refresh on component mount and at regular intervals
+  useEffect(() => {
+    // Initial load
+    refreshDecks();
+    
+    // Set up an interval to check for updates
+    const intervalId = setInterval(() => {
+      refreshDecks();
+    }, 5000); // Check every 5 seconds
+    
+    return () => clearInterval(intervalId);
+  }, []);
 
   return (
     <div className="container mx-auto p-6">
