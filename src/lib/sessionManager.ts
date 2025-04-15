@@ -243,8 +243,98 @@ const getUserDataKeys = (sessionKey: string): string[] => {
   return keys;
 };
 
+// Get all localStorage data for export
+export const exportSessionData = (): string => {
+  const sessionKey = getSessionKey();
+  if (!sessionKey) {
+    throw new Error("No active session found");
+  }
+  
+  // Gather all data for this session
+  const exportData: Record<string, any> = {
+    sessionKey,
+    exportDate: new Date().toISOString(),
+    userData: {},
+    appData: {}, // App-specific data like decks, themes, etc.
+    stats: getSessionStats()
+  };
+  
+  // Get all session-specific user data
+  const userDataKeys = getUserDataKeys(sessionKey);
+  userDataKeys.forEach(key => {
+    const keyName = key.replace(`${USER_DATA_PREFIX}${sessionKey}_`, '');
+    const value = localStorage.getItem(key);
+    if (value) {
+      try {
+        exportData.userData[keyName] = JSON.parse(value);
+      } catch (e) {
+        exportData.userData[keyName] = value;
+      }
+    }
+  });
+  
+  // Also export app-specific data
+  const appDataKeys = ['cds-flashcard-decks', 'cds-flashcard-themes', 'cds-flashcard-cards', 'cds-flashcard-user'];
+  appDataKeys.forEach(key => {
+    const value = localStorage.getItem(key);
+    if (value) {
+      try {
+        exportData.appData[key] = JSON.parse(value);
+      } catch (e) {
+        exportData.appData[key] = value;
+      }
+    }
+  });
+  
+  return JSON.stringify(exportData, null, 2);
+};
+
+// Import session data
+export const importSessionData = (data: string): boolean => {
+  try {
+    // Parse the imported data
+    const importData = JSON.parse(data);
+    
+    // Validate the data structure
+    if (!importData.sessionKey || !importData.userData || !importData.appData) {
+      console.error("Invalid import data format");
+      return false;
+    }
+    
+    // Import the session key
+    saveSessionKey(importData.sessionKey);
+    
+    // Import all user data
+    Object.entries(importData.userData).forEach(([key, value]) => {
+      localStorage.setItem(
+        `${USER_DATA_PREFIX}${importData.sessionKey}_${key}`,
+        typeof value === 'string' ? value : JSON.stringify(value)
+      );
+    });
+    
+    // Import app data
+    Object.entries(importData.appData).forEach(([key, value]) => {
+      localStorage.setItem(
+        key,
+        typeof value === 'string' ? value : JSON.stringify(value)
+      );
+    });
+    
+    // If stats are present in the import, update them
+    if (importData.stats) {
+      const statsKey = `${USER_DATA_PREFIX}${importData.sessionKey}${STATS_KEY_SUFFIX}`;
+      localStorage.setItem(statsKey, JSON.stringify(importData.stats));
+    }
+    
+    console.log("Session data successfully imported");
+    return true;
+  } catch (error) {
+    console.error("Error importing session data:", error);
+    return false;
+  }
+};
+
 // Link user data to session key
-// This function associates all user data with their session key
 export const linkUserDataToSession = (sessionKey: string): void => {
   // In a real-world scenario, this would be handled by a backend service
   // For now, we're using localStorage as our "database"
@@ -253,68 +343,6 @@ export const linkUserDataToSession = (sessionKey: string): void => {
   initializeUserDataForSession(sessionKey);
   
   console.log(`User data linked to session: ${sessionKey}`);
-};
-
-// Export session data for backup
-export const exportSessionData = (): string => {
-  // In a real app, this would gather all user data and create an export
-  const sessionKey = getSessionKey();
-  if (!sessionKey) {
-    return "";
-  }
-  
-  // Collect all user data for this session
-  const exportData = {
-    sessionKey,
-    exportDate: new Date().toISOString(),
-    userData: {}
-  };
-  
-  // Get all data keys for this session
-  const userDataKeys = getUserDataKeys(sessionKey);
-  userDataKeys.forEach(key => {
-    const dataKey = key.replace(`${USER_DATA_PREFIX}${sessionKey}_`, '');
-    const dataValue = localStorage.getItem(key);
-    if (dataValue) {
-      // @ts-ignore
-      exportData.userData[dataKey] = JSON.parse(dataValue);
-    }
-  });
-  
-  return JSON.stringify(exportData);
-};
-
-// Import session data from backup
-export const importSessionData = (data: string): boolean => {
-  try {
-    const importData = JSON.parse(data);
-    if (!importData.sessionKey) {
-      return false;
-    }
-    
-    const sessionKey = importData.sessionKey;
-    
-    // Save the session key first
-    saveSessionKey(sessionKey);
-    
-    // Import all user data
-    if (importData.userData) {
-      Object.entries(importData.userData).forEach(([key, value]) => {
-        localStorage.setItem(`${USER_DATA_PREFIX}${sessionKey}_${key}`, JSON.stringify(value));
-      });
-    }
-    
-    // Make sure stats are initialized
-    if (!importData.userData?.stats) {
-      initializeSessionStats(sessionKey);
-    }
-    
-    console.log(`Session data imported successfully: ${sessionKey}`);
-    return true;
-  } catch (error) {
-    console.error("Failed to import session data:", error);
-    return false;
-  }
 };
 
 // Get remaining session time in days
