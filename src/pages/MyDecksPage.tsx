@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { getDecks } from '@/lib/localStorage';
+import { getDecks, type Deck } from '@/lib/localStorage';
 import { getUser } from '@/lib/localStorage';
 import DeckCard from '@/components/DeckCard';
 import { Button } from '@/components/ui/button';
