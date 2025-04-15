@@ -28,6 +28,7 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import FlashCard from "@/components/FlashCard";
 import ThemeCard from "@/components/ThemeCard";
+import FlashCardItem from "@/components/FlashCardItem";
 
 import { 
   getDeck, 
@@ -105,6 +106,18 @@ const DeckPage = () => {
     
     setIsLoading(false);
   }, [id, navigate, toast]);
+  
+  const refreshThemes = () => {
+    if (!id) return;
+    const deckThemes = getThemesByDeck(id);
+    setThemes(deckThemes);
+  };
+
+  const refreshFlashcards = () => {
+    if (!id) return;
+    const deckCards = getFlashcardsByDeck(id);
+    setFlashcards(deckCards);
+  };
   
   const handleThemeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -537,29 +550,13 @@ const DeckPage = () => {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {flashcards.map((card, index) => (
-                  <Card key={card.id} className="h-64 overflow-hidden">
-                    <CardHeader className="p-4 pb-0">
-                      <CardTitle className="text-sm font-medium flex justify-between">
-                        <span>Carte {index + 1}</span>
-                        {card.themeId && (
-                          <Badge variant="outline" className="text-xs">
-                            {themes.find(t => t.id === card.themeId)?.title || "Thème"}
-                          </Badge>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-4 h-full">
-                      <div className="h-full">
-                        <FlashCard
-                          id={card.id}
-                          front={card.front}
-                          back={card.back}
-                          className="h-full"
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+                {flashcards.map((card) => (
+                  <FlashCardItem
+                    key={card.id}
+                    card={card}
+                    onDelete={refreshFlashcards}
+                    onUpdate={refreshFlashcards}
+                  />
                 ))}
               </div>
             </div>
@@ -605,6 +602,8 @@ const DeckPage = () => {
                       description={theme.description}
                       cardCount={themeCards.length}
                       coverImage={theme.coverImage}
+                      onDelete={refreshThemes}
+                      onUpdate={refreshThemes}
                     />
                   );
                 })}
