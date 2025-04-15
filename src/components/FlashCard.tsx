@@ -1,6 +1,5 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Card } from "@/components/ui/card";
 import { Volume2, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
