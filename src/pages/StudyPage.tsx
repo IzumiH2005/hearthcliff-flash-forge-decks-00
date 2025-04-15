@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -82,10 +81,8 @@ const StudyPage = () => {
       const deckThemes = getThemesByDeck(id);
       setThemes(deckThemes);
 
-      // Initialize with all cards
       setFilteredCards(shuffle ? shuffleArray([...deckCards]) : [...deckCards]);
 
-      // Record study session start
       updateSessionStats({
         studySessions: 1,
         lastStudyDate: new Date().toISOString(),
@@ -105,12 +102,10 @@ const StudyPage = () => {
 
     let filtered = [...cards];
 
-    // Filter by theme if a specific theme is selected
     if (studyTheme !== "all") {
       filtered = filtered.filter(card => card.themeId === studyTheme);
     }
 
-    // Apply shuffle if enabled
     if (shuffle) {
       filtered = shuffleArray(filtered);
     }
@@ -125,7 +120,6 @@ const StudyPage = () => {
     setCorrectAnswers(0);
     setIncorrectAnswers(0);
     setShowResults(false);
-
   }, [studyTheme, shuffle, cards]);
 
   useEffect(() => {
@@ -154,7 +148,6 @@ const StudyPage = () => {
       setShowAnswer(false);
       setShowHint(false);
     } else {
-      // End of deck
       if (studyMode === StudyMode.FLASHCARDS) {
         recordStudySession();
         toast({
@@ -311,7 +304,6 @@ Est-ce que la réponse utilisateur est correcte ?`
         }
       }, 1000);
     } else {
-      // End of quiz
       recordStudySession();
       setShowResults(true);
     }
@@ -325,7 +317,7 @@ Est-ce que la réponse utilisateur est correcte ?`
       toast({
         title: "Réponse vide",
         description: "Veuillez entrer une réponse avant de vérifier",
-        variant: "warning",
+        variant: "default",
       });
       return;
     }
@@ -341,12 +333,10 @@ Est-ce que la réponse utilisateur est correcte ?`
           }
         }, 1000);
       } else if (result !== null && currentCardIndex === filteredCards.length - 1) {
-        // End of quiz
         recordStudySession();
         setShowResults(true);
       }
     } else {
-      // Fallback to exact match if Gemini is not configured
       const isCorrect = userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
       handleManualCheck(cardId, isCorrect);
     }
@@ -354,11 +344,9 @@ Est-ce que la réponse utilisateur est correcte ?`
 
   const recordStudySession = () => {
     try {
-      // Calculate study duration in minutes
       const endTime = new Date();
       const durationMinutes = Math.round((endTime.getTime() - studyStartTime.getTime()) / (1000 * 60));
       
-      // Update session statistics
       updateSessionStats({
         totalStudyTime: durationMinutes,
         lastStudyDate: new Date().toISOString(),
@@ -381,7 +369,6 @@ Est-ce que la réponse utilisateur est correcte ?`
     setIncorrectAnswers(0);
     setShowResults(false);
     
-    // Re-shuffle if enabled
     if (shuffle) {
       setFilteredCards(shuffleArray([...filteredCards]));
     }
