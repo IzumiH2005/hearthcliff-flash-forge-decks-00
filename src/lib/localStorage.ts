@@ -1,3 +1,4 @@
+
 // Types
 export interface User {
   id: string;
@@ -26,11 +27,13 @@ export interface Flashcard {
     text: string;
     image?: string;
     audio?: string;
+    additionalInfo?: string;
   };
   back: {
     text: string;
     image?: string;
     audio?: string;
+    additionalInfo?: string;
   };
   createdAt: string;
   updatedAt: string;
