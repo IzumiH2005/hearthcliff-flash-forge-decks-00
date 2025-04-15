@@ -1,4 +1,3 @@
-
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -11,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
 import React from "react";
-import { BookOpen, Lightbulb, Settings, Share2, TrendingUp } from "lucide-react";
+import { BookOpen, Lightbulb, Settings, Share2, TrendingUp, Folder } from "lucide-react";
 import { hasSession } from "@/lib/sessionManager";
 
 interface NavItem {
@@ -55,6 +54,12 @@ const resourcesItems: NavItem[] = [
     href: "/share",
     description: "Partager vos decks et votre progression",
     icon: <Share2 className="h-5 w-5 text-blue-500" />,
+  },
+  {
+    title: "Mes Decks",
+    href: "/my-decks",
+    description: "Voir tous vos decks personnels",
+    icon: <Folder className="h-5 w-5 text-blue-500" />,
   },
 ];
 

@@ -1,6 +1,5 @@
-
 import { Link, useLocation } from "react-router-dom";
-import { Home, Plus, Search, User, Menu, X } from "lucide-react";
+import { Home, Plus, Search, User, Menu, X, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -37,6 +36,9 @@ const Navbar = () => {
           </Link>
           <Link to="/profile" className={`nav-link ${location.pathname === '/profile' ? 'active' : ''}`}>
             Profil
+          </Link>
+          <Link to="/my-decks" className={`nav-link ${location.pathname === '/my-decks' ? 'active' : ''}`}>
+            Mes Decks
           </Link>
         </nav>
 
@@ -106,6 +108,14 @@ const Navbar = () => {
             >
               <User className="h-5 w-5" />
               Profil
+            </Link>
+            <Link 
+              to="/my-decks" 
+              className={`flex items-center gap-2 px-2 py-2 rounded-md ${location.pathname === '/my-decks' ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={toggleMenu}
+            >
+              <Folder className="h-5 w-5" />
+              Mes Decks
             </Link>
           </nav>
         </div>

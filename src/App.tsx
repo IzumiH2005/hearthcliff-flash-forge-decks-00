@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -28,6 +27,7 @@ import Index from "@/pages/Index";
 import LearningMethodsPage from "@/pages/LearningMethodsPage";
 import StatsPage from "@/pages/StatsPage";
 import SharePage from "@/pages/SharePage";
+import MyDecksPage from "@/pages/MyDecksPage";
 
 const queryClient = new QueryClient();
 
@@ -210,6 +210,18 @@ const App = () => {
                     <Navbar />
                     <main className="flex-1">
                       <SharePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/my-decks" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <MyDecksPage />
                     </main>
                     <Footer />
                   </>
