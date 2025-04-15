@@ -227,7 +227,8 @@ const FlashCard = ({
       </div>
       <audio ref={audioRef} className="hidden" />
       
-      <style jsx>{`
+      <style>
+        {`
         .flashcard {
           transition: transform 0.3s;
           min-height: 250px;
@@ -267,7 +268,8 @@ const FlashCard = ({
         .flashcard-back {
           transform: rotateY(180deg);
         }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };
