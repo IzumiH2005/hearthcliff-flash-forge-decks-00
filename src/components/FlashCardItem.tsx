@@ -1,13 +1,14 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Edit, Trash2, Save } from "lucide-react";
+import { Edit, Trash2, Save, X } from "lucide-react";
 import { updateFlashcard, deleteFlashcard, Flashcard, getBase64 } from "@/lib/localStorage";
 import FlashCard from "./FlashCard";
 
@@ -21,9 +22,21 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
   const { toast } = useToast();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showFrontAdditionalInfo, setShowFrontAdditionalInfo] = useState(!!card.front.additionalInfo);
+  const [showBackAdditionalInfo, setShowBackAdditionalInfo] = useState(!!card.back.additionalInfo);
   const [editingCard, setEditingCard] = useState({
-    front: { ...card.front },
-    back: { ...card.back },
+    front: { 
+      text: card.front.text,
+      image: card.front.image,
+      audio: card.front.audio,
+      additionalInfo: card.front.additionalInfo || ""
+    },
+    back: { 
+      text: card.back.text,
+      image: card.back.image,
+      audio: card.back.audio,
+      additionalInfo: card.back.additionalInfo || ""
+    },
   });
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
@@ -127,9 +140,23 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
     }
 
     try {
+      const updatedFront = {
+        text: editingCard.front.text.trim(),
+        image: editingCard.front.image,
+        audio: editingCard.front.audio,
+        additionalInfo: showFrontAdditionalInfo ? editingCard.front.additionalInfo.trim() : undefined
+      };
+
+      const updatedBack = {
+        text: editingCard.back.text.trim(),
+        image: editingCard.back.image,
+        audio: editingCard.back.audio,
+        additionalInfo: showBackAdditionalInfo ? editingCard.back.additionalInfo.trim() : undefined
+      };
+
       const updated = updateFlashcard(card.id, {
-        front: editingCard.front,
-        back: editingCard.back,
+        front: updatedFront,
+        back: updatedBack,
       });
 
       if (updated) {
@@ -173,12 +200,12 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
 
   return (
     <>
-      <Card className="group relative">
+      <Card className="group relative overflow-hidden transition-all duration-300 hover:shadow-lg">
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
           <Button
             variant="secondary"
             size="icon"
-            className="h-8 w-8 bg-white/80 hover:bg-white"
+            className="h-8 w-8 bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800"
             onClick={() => setShowEditDialog(true)}
           >
             <Edit className="h-4 w-4" />
@@ -193,7 +220,9 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
           </Button>
         </div>
 
-        <FlashCard {...card} />
+        <CardContent className="p-0">
+          <FlashCard {...card} />
+        </CardContent>
       </Card>
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
@@ -231,8 +260,19 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
                     <img
                       src={editingCard.front.image}
                       alt="Front side"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full"
+                      onClick={() => setEditingCard({
+                        ...editingCard,
+                        front: { ...editingCard.front, image: undefined },
+                      })}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
                 )}
               </div>
@@ -245,12 +285,54 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
                   onChange={(e) => handleAudioUpload(e, 'front')}
                 />
                 {editingCard.front.audio && (
-                  <audio className="w-full mt-2" controls>
-                    <source src={editingCard.front.audio} />
-                    Votre navigateur ne supporte pas l'élément audio.
-                  </audio>
+                  <div className="mt-2 relative">
+                    <audio className="w-full" controls>
+                      <source src={editingCard.front.audio} />
+                      Votre navigateur ne supporte pas l'élément audio.
+                    </audio>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 right-2 w-6 h-6 rounded-full"
+                      onClick={() => setEditingCard({
+                        ...editingCard,
+                        front: { ...editingCard.front, audio: undefined },
+                      })}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 )}
               </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox 
+                  id="show-front-additional-info" 
+                  checked={showFrontAdditionalInfo}
+                  onCheckedChange={(checked) => {
+                    setShowFrontAdditionalInfo(checked as boolean);
+                  }}
+                />
+                <Label htmlFor="show-front-additional-info">Ajouter des informations supplémentaires</Label>
+              </div>
+
+              {showFrontAdditionalInfo && (
+                <div className="space-y-2">
+                  <Label htmlFor="front-additional-info">Informations supplémentaires</Label>
+                  <Textarea
+                    id="front-additional-info"
+                    rows={3}
+                    value={editingCard.front.additionalInfo}
+                    onChange={(e) =>
+                      setEditingCard({
+                        ...editingCard,
+                        front: { ...editingCard.front, additionalInfo: e.target.value },
+                      })
+                    }
+                    placeholder="Ajoutez des notes, contexte ou détails complémentaires..."
+                  />
+                </div>
+              )}
             </div>
 
             <div className="space-y-4 border p-4 rounded-lg">
@@ -282,8 +364,19 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
                     <img
                       src={editingCard.back.image}
                       alt="Back side"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full"
+                      onClick={() => setEditingCard({
+                        ...editingCard,
+                        back: { ...editingCard.back, image: undefined },
+                      })}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
                   </div>
                 )}
               </div>
@@ -296,12 +389,54 @@ const FlashCardItem = ({ card, onDelete, onUpdate }: FlashCardItemProps) => {
                   onChange={(e) => handleAudioUpload(e, 'back')}
                 />
                 {editingCard.back.audio && (
-                  <audio className="w-full mt-2" controls>
-                    <source src={editingCard.back.audio} />
-                    Votre navigateur ne supporte pas l'élément audio.
-                  </audio>
+                  <div className="mt-2 relative">
+                    <audio className="w-full" controls>
+                      <source src={editingCard.back.audio} />
+                      Votre navigateur ne supporte pas l'élément audio.
+                    </audio>
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 right-2 w-6 h-6 rounded-full"
+                      onClick={() => setEditingCard({
+                        ...editingCard,
+                        back: { ...editingCard.back, audio: undefined },
+                      })}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
                 )}
               </div>
+
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox 
+                  id="show-back-additional-info" 
+                  checked={showBackAdditionalInfo}
+                  onCheckedChange={(checked) => {
+                    setShowBackAdditionalInfo(checked as boolean);
+                  }}
+                />
+                <Label htmlFor="show-back-additional-info">Ajouter des informations supplémentaires</Label>
+              </div>
+
+              {showBackAdditionalInfo && (
+                <div className="space-y-2">
+                  <Label htmlFor="back-additional-info">Informations supplémentaires</Label>
+                  <Textarea
+                    id="back-additional-info"
+                    rows={3}
+                    value={editingCard.back.additionalInfo}
+                    onChange={(e) =>
+                      setEditingCard({
+                        ...editingCard,
+                        back: { ...editingCard.back, additionalInfo: e.target.value },
+                      })
+                    }
+                    placeholder="Ajoutez des notes, contexte ou détails complémentaires..."
+                  />
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>

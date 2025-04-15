@@ -6,9 +6,9 @@ import {
   ChevronLeft, 
   PlusCircle, 
   ArrowLeft,
-  Edit,
   Check,
-  X
+  X,
+  Info
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import FlashCard from "@/components/FlashCard";
+import FlashCardItem from "@/components/FlashCardItem";
 
 import { 
   getDeck, 
@@ -27,6 +29,8 @@ import {
   getUser, 
   createFlashcard, 
   getBase64,
+  updateFlashcard,
+  deleteFlashcard,
   Flashcard,
   Theme,
   Deck
@@ -43,6 +47,8 @@ const ThemePage = () => {
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showCardDialog, setShowCardDialog] = useState(false);
+  const [showFrontAdditionalInfo, setShowFrontAdditionalInfo] = useState(false);
+  const [showBackAdditionalInfo, setShowBackAdditionalInfo] = useState(false);
 
   // New flashcard form
   const [newCard, setNewCard] = useState({
@@ -50,11 +56,13 @@ const ThemePage = () => {
       text: "",
       image: undefined as string | undefined,
       audio: undefined as string | undefined,
+      additionalInfo: "",
     },
     back: {
       text: "",
       image: undefined as string | undefined,
       audio: undefined as string | undefined,
+      additionalInfo: "",
     },
   });
 
@@ -177,6 +185,18 @@ const ThemePage = () => {
     }
   };
 
+  const handleDeleteCard = (cardId: string) => {
+    const updatedCards = flashcards.filter(card => card.id !== cardId);
+    setFlashcards(updatedCards);
+  };
+
+  const handleUpdateCard = (updatedCard: Flashcard) => {
+    const updatedCards = flashcards.map(card => 
+      card.id === updatedCard.id ? updatedCard : card
+    );
+    setFlashcards(updatedCards);
+  };
+
   const createNewCard = () => {
     if (!deckId || !themeId) return;
     
@@ -199,35 +219,47 @@ const ThemePage = () => {
     }
     
     try {
+      const frontData = {
+        text: newCard.front.text.trim(),
+        image: newCard.front.image,
+        audio: newCard.front.audio,
+        additionalInfo: showFrontAdditionalInfo ? newCard.front.additionalInfo.trim() : undefined
+      };
+      
+      const backData = {
+        text: newCard.back.text.trim(),
+        image: newCard.back.image,
+        audio: newCard.back.audio,
+        additionalInfo: showBackAdditionalInfo ? newCard.back.additionalInfo.trim() : undefined
+      };
+      
       const card = createFlashcard({
         deckId,
         themeId,
-        front: {
-          text: newCard.front.text.trim(),
-          image: newCard.front.image,
-          audio: newCard.front.audio,
-        },
-        back: {
-          text: newCard.back.text.trim(),
-          image: newCard.back.image,
-          audio: newCard.back.audio,
-        },
+        front: frontData,
+        back: backData,
       });
       
       setFlashcards([...flashcards, card]);
       setShowCardDialog(false);
+      
+      // Reset form
       setNewCard({
         front: {
           text: "",
           image: undefined,
           audio: undefined,
+          additionalInfo: "",
         },
         back: {
           text: "",
           image: undefined,
           audio: undefined,
+          additionalInfo: "",
         },
       });
+      setShowFrontAdditionalInfo(false);
+      setShowBackAdditionalInfo(false);
       
       toast({
         title: "Carte créée",
@@ -280,7 +312,7 @@ const ThemePage = () => {
       <div className="flex flex-col md:flex-row gap-6 mb-8">
         {theme.coverImage ? (
           <div className="w-full md:w-1/3 lg:w-1/4">
-            <div className="aspect-video md:aspect-square rounded-xl overflow-hidden border">
+            <div className="aspect-video md:aspect-square rounded-xl overflow-hidden border shadow-md transition-all duration-300 hover:shadow-lg">
               <img
                 src={theme.coverImage}
                 alt={theme.title}
@@ -290,7 +322,7 @@ const ThemePage = () => {
           </div>
         ) : (
           <div className="w-full md:w-1/3 lg:w-1/4">
-            <div className="aspect-video md:aspect-square rounded-xl overflow-hidden border bg-gradient-to-r from-accent/30 to-primary/30 flex items-center justify-center">
+            <div className="aspect-video md:aspect-square rounded-xl overflow-hidden border bg-gradient-to-r from-accent/30 to-primary/30 flex items-center justify-center shadow-md transition-all duration-300 hover:shadow-lg">
               <BookOpen className="h-16 w-16 text-primary/50" />
             </div>
           </div>
@@ -313,7 +345,7 @@ const ThemePage = () => {
           </div>
           
           <div className="flex gap-2">
-            <Button asChild>
+            <Button asChild className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow transition-all duration-300 hover:shadow-md">
               <Link to={`/deck/${deckId}/theme/${themeId}/study`}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 Étudier ce thème
@@ -321,7 +353,11 @@ const ThemePage = () => {
             </Button>
             
             {isOwner && (
-              <Button variant="outline" onClick={() => setShowCardDialog(true)}>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowCardDialog(true)}
+                className="border-primary/30 hover:border-primary/60 transition-all duration-300"
+              >
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Ajouter une carte
               </Button>
@@ -334,7 +370,12 @@ const ThemePage = () => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Cartes dans ce thème ({flashcards.length})</h2>
           {isOwner && (
-            <Button variant="outline" size="sm" onClick={() => setShowCardDialog(true)}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowCardDialog(true)}
+              className="border-primary/30 hover:border-primary/60 transition-all duration-300"
+            >
               <PlusCircle className="h-4 w-4 mr-1" />
               Ajouter une carte
             </Button>
@@ -343,24 +384,13 @@ const ThemePage = () => {
         
         {flashcards.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {flashcards.map((card, index) => (
-              <Card key={card.id} className="h-64 overflow-hidden">
-                <CardHeader className="p-4 pb-0">
-                  <CardTitle className="text-sm font-medium">
-                    Carte {index + 1}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 h-full">
-                  <div className="h-full">
-                    <FlashCard
-                      id={card.id}
-                      front={card.front}
-                      back={card.back}
-                      className="h-full"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
+            {flashcards.map((card) => (
+              <FlashCardItem 
+                key={card.id} 
+                card={card} 
+                onDelete={() => handleDeleteCard(card.id)}
+                onUpdate={handleUpdateCard}
+              />
             ))}
           </div>
         ) : (
@@ -422,7 +452,7 @@ const ThemePage = () => {
                     <img
                       src={newCard.front.image}
                       alt="Front side"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                     <Button
                       variant="destructive"
@@ -467,6 +497,38 @@ const ThemePage = () => {
                   </div>
                 )}
               </div>
+              
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox 
+                  id="show-front-additional-info" 
+                  checked={showFrontAdditionalInfo}
+                  onCheckedChange={(checked) => {
+                    setShowFrontAdditionalInfo(checked as boolean);
+                  }}
+                />
+                <label 
+                  htmlFor="show-front-additional-info" 
+                  className="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Ajouter des informations supplémentaires
+                </label>
+              </div>
+
+              {showFrontAdditionalInfo && (
+                <div className="space-y-2">
+                  <Label htmlFor="front-additional-info">Informations supplémentaires</Label>
+                  <Textarea
+                    id="front-additional-info"
+                    placeholder="Notes, contexte ou détails complémentaires..."
+                    rows={3}
+                    value={newCard.front.additionalInfo}
+                    onChange={(e) => setNewCard({
+                      ...newCard,
+                      front: { ...newCard.front, additionalInfo: e.target.value },
+                    })}
+                  />
+                </div>
+              )}
             </div>
             
             {/* Back of the card */}
@@ -500,7 +562,7 @@ const ThemePage = () => {
                     <img
                       src={newCard.back.image}
                       alt="Back side"
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain"
                     />
                     <Button
                       variant="destructive"
@@ -545,6 +607,38 @@ const ThemePage = () => {
                   </div>
                 )}
               </div>
+              
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox 
+                  id="show-back-additional-info" 
+                  checked={showBackAdditionalInfo}
+                  onCheckedChange={(checked) => {
+                    setShowBackAdditionalInfo(checked as boolean);
+                  }}
+                />
+                <label 
+                  htmlFor="show-back-additional-info" 
+                  className="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Ajouter des informations supplémentaires
+                </label>
+              </div>
+
+              {showBackAdditionalInfo && (
+                <div className="space-y-2">
+                  <Label htmlFor="back-additional-info">Informations supplémentaires</Label>
+                  <Textarea
+                    id="back-additional-info"
+                    placeholder="Notes, contexte ou détails complémentaires..."
+                    rows={3}
+                    value={newCard.back.additionalInfo}
+                    onChange={(e) => setNewCard({
+                      ...newCard,
+                      back: { ...newCard.back, additionalInfo: e.target.value },
+                    })}
+                  />
+                </div>
+              )}
             </div>
           </div>
           
@@ -552,7 +646,7 @@ const ThemePage = () => {
             <Button variant="outline" onClick={() => setShowCardDialog(false)}>
               Annuler
             </Button>
-            <Button onClick={createNewCard}>
+            <Button onClick={createNewCard} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary">
               <Check className="mr-2 h-4 w-4" />
               Ajouter la carte
             </Button>
