@@ -82,7 +82,7 @@ const FlashCard = ({
         isFlipped ? "flipped" : "",
         className
       )}
-      style={{ minHeight: height }}
+      style={{ minHeight: "300px", height }} // Augmentation de la hauteur minimale
       onClick={handleFlip}
     >
       <div className="flashcard-inner w-full h-full relative shadow-lg">
@@ -91,7 +91,7 @@ const FlashCard = ({
           className="flashcard-front bg-gradient-to-br from-indigo-500/20 to-purple-600/30 dark:from-indigo-900/50 dark:to-purple-800/40 backdrop-blur-sm rounded-xl p-6 flex flex-col items-center justify-center gap-4 border border-indigo-200/60 dark:border-indigo-700/60 shadow-md"
         >
           {front.image && (
-            <div className="w-full max-h-52 overflow-hidden rounded-lg mb-4 border border-indigo-200/60 dark:border-indigo-700/60 shadow-md transition-transform hover:scale-[1.02] duration-300">
+            <div className="w-full max-h-80 overflow-hidden rounded-lg mb-4 border border-indigo-200/60 dark:border-indigo-700/60 shadow-md transition-transform hover:scale-[1.02] duration-300">
               <img
                 src={front.image}
                 alt="Front side"
@@ -160,7 +160,7 @@ const FlashCard = ({
           className="flashcard-back bg-gradient-to-br from-purple-500/20 to-pink-600/30 dark:from-purple-900/50 dark:to-pink-800/40 backdrop-blur-sm rounded-xl p-6 flex flex-col items-center justify-center gap-4 border border-purple-200/60 dark:border-purple-700/60 shadow-md"
         >
           {back.image && (
-            <div className="w-full max-h-52 overflow-hidden rounded-lg mb-4 border border-purple-200/60 dark:border-purple-700/60 shadow-md transition-transform hover:scale-[1.02] duration-300">
+            <div className="w-full max-h-80 overflow-hidden rounded-lg mb-4 border border-purple-200/60 dark:border-purple-700/60 shadow-md transition-transform hover:scale-[1.02] duration-300">
               <img
                 src={back.image}
                 alt="Back side"
@@ -230,7 +230,8 @@ const FlashCard = ({
         {`
         .flashcard {
           transition: transform 0.3s;
-          min-height: 250px;
+          min-height: 300px; /* Augmentation de la hauteur minimale */
+          aspect-ratio: 3/2; /* Proportion plus rectangulaire */
         }
         
         .perspective-1000 {

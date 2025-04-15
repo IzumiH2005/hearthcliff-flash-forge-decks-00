@@ -80,6 +80,8 @@
 @layer components {
   .flashcard {
     @apply relative w-full h-full rounded-xl shadow-lg cursor-pointer perspective-1000 transition-transform duration-300;
+    min-height: 300px;
+    aspect-ratio: 3/2;
   }
   
   .flashcard-inner {
