@@ -10,15 +10,23 @@ import { useToast } from '@/hooks/use-toast';
 
 const MyDecksPage = () => {
   const [decks, setDecks] = useState<Deck[]>([]);
-  const user = getUser();
+  const [user, setUser] = useState(getUser());
   const location = useLocation();
   const { toast } = useToast();
 
   // Fonction pour rafraîchir la liste des decks
   const refreshDecks = () => {
-    // Ensure we get the latest user
+    // Force get latest user and decks data from localStorage
     const currentUser = getUser();
-    const userDecks = getDecks().filter(deck => deck.authorId === currentUser?.id);
+    setUser(currentUser);
+    
+    // Get fresh deck data
+    const allDecks = getDecks();
+    const userDecks = allDecks.filter(deck => deck.authorId === currentUser?.id);
+    
+    console.log('Refreshing decks for user:', currentUser?.id);
+    console.log('Found decks:', userDecks.length);
+    
     setDecks(userDecks);
     toast({
       title: "Liste mise à jour",
@@ -26,25 +34,48 @@ const MyDecksPage = () => {
     });
   };
 
+  // Refresh when navigation happens
   useEffect(() => {
     // Always get the latest user when the component mounts or updates
     const currentUser = getUser();
+    setUser(currentUser);
+    
     // Filtrer uniquement les decks de l'utilisateur connecté
     const userDecks = getDecks().filter(deck => deck.authorId === currentUser?.id);
+    console.log('Navigation refresh - User ID:', currentUser?.id);
+    console.log('Navigation refresh - Decks found:', userDecks.length);
     setDecks(userDecks);
   }, [location.key]); // React to navigation changes
 
-  // Add a forceful refresh on component mount and at regular intervals
+  // Additional periodic refresh for better sync on published site
   useEffect(() => {
     // Initial load
-    refreshDecks();
+    const initialUser = getUser();
+    console.log('Initial load - User ID:', initialUser?.id);
+    const initialDecks = getDecks().filter(deck => deck.authorId === initialUser?.id);
+    console.log('Initial load - Decks found:', initialDecks.length);
+    setDecks(initialDecks);
     
-    // Set up an interval to check for updates
-    const intervalId = setInterval(() => {
+    // First refresh after a short delay
+    const initialRefreshTimeout = setTimeout(() => {
       refreshDecks();
-    }, 5000); // Check every 5 seconds
+    }, 1000);
     
-    return () => clearInterval(intervalId);
+    // Set up an interval to check for updates more frequently
+    const intervalId = setInterval(() => {
+      const latestUser = getUser();
+      if (latestUser) {
+        const freshDecks = getDecks().filter(deck => deck.authorId === latestUser.id);
+        if (JSON.stringify(freshDecks) !== JSON.stringify(decks)) {
+          setDecks(freshDecks);
+        }
+      }
+    }, 2000); // Check every 2 seconds
+    
+    return () => {
+      clearTimeout(initialRefreshTimeout);
+      clearInterval(intervalId);
+    };
   }, []);
 
   return (

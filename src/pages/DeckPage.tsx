@@ -95,8 +95,9 @@ const DeckPage = () => {
     }
     
     setDeck(deckData);
-    const user = getUser();
-    setIsOwner(deckData.authorId === user?.id);
+    const currentUser = getUser();
+    setUser(currentUser);
+    setIsOwner(deckData.authorId === currentUser?.id);
     
     const deckThemes = getThemesByDeck(id);
     setThemes(deckThemes);
@@ -105,6 +106,18 @@ const DeckPage = () => {
     setFlashcards(deckCards);
     
     setIsLoading(false);
+    
+    const checkOwnershipInterval = setInterval(() => {
+      const freshUser = getUser();
+      if (freshUser?.id !== user?.id) {
+        setUser(freshUser);
+        setIsOwner(deckData.authorId === freshUser?.id);
+      }
+    }, 3000);
+    
+    return () => {
+      clearInterval(checkOwnershipInterval);
+    };
   }, [id, navigate, toast]);
   
   const refreshThemes = () => {
@@ -457,8 +470,8 @@ const DeckPage = () => {
         
         <div className="flex-1">
           <div className="flex items-start justify-between">
-            <h1 className="text-3xl font-bold mb-2">{deck.title}</h1>
-            {isOwner && (
+            <h1 className="text-3xl font-bold mb-2">{deck?.title}</h1>
+            {deck?.authorId === getUser()?.id && (
               <Button variant="ghost" size="icon" asChild className="text-primary hover:text-primary/80 hover:bg-primary/10">
                 <Link to={`/deck/${id}/edit`}>
                   <Edit className="h-5 w-5" />
@@ -492,7 +505,7 @@ const DeckPage = () => {
               Partager
             </Button>
             
-            {isOwner && (
+            {deck?.authorId === getUser()?.id && (
               <>
                 <Button variant="outline" onClick={() => setShowThemeDialog(true)} className="border-secondary/50 hover:bg-secondary/20">
                   <FolderPlus className="mr-2 h-4 w-4" />
@@ -541,7 +554,7 @@ const DeckPage = () => {
             <div className="mb-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Cartes ({flashcards.length})</h2>
-                {isOwner && (
+                {deck?.authorId === getUser()?.id && (
                   <Button variant="outline" size="sm" onClick={() => setShowCardDialog(true)}>
                     <PlusIcon className="h-4 w-4 mr-1" />
                     Ajouter une carte
@@ -567,7 +580,7 @@ const DeckPage = () => {
               <p className="text-muted-foreground mb-6">
                 Ce deck ne contient pas encore de flashcards
               </p>
-              {isOwner && (
+              {deck?.authorId === getUser()?.id && (
                 <Button onClick={() => setShowCardDialog(true)}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Ajouter une carte
@@ -582,7 +595,7 @@ const DeckPage = () => {
             <div className="mb-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-bold">Thèmes ({themes.length})</h2>
-                {isOwner && (
+                {deck?.authorId === getUser()?.id && (
                   <Button variant="outline" size="sm" onClick={() => setShowThemeDialog(true)}>
                     <PlusIcon className="h-4 w-4 mr-1" />
                     Ajouter un thème
@@ -616,7 +629,7 @@ const DeckPage = () => {
               <p className="text-muted-foreground mb-6">
                 Ce deck ne contient pas encore de thèmes
               </p>
-              {isOwner && (
+              {deck?.authorId === getUser()?.id && (
                 <Button onClick={() => setShowThemeDialog(true)}>
                   <FolderPlus className="mr-2 h-4 w-4" />
                   Ajouter un thème
