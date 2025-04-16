@@ -73,7 +73,7 @@ const ImportPage = () => {
       }
       
       // Create a new deck
-      const newDeck = createDeck({
+      const newDeck = await createDeck({
         title: `${deck.title} (Importé)`,
         description: deck.description,
         coverImage: deck.coverImage,

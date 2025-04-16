@@ -29,6 +29,7 @@ const CreatePage = () => {
   const [coverImage, setCoverImage] = useState<string | undefined>();
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,7 +37,6 @@ const CreatePage = () => {
     if (!file) return;
 
     try {
-      // Check file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast({
           title: "Fichier trop volumineux",
@@ -46,7 +46,6 @@ const CreatePage = () => {
         return;
       }
 
-      // Check file type
       if (!file.type.startsWith("image/")) {
         toast({
           title: "Format non supporté",
@@ -94,7 +93,7 @@ const CreatePage = () => {
     }
   };
 
-  const handleCreateDeck = () => {
+  const handleCreateDeck = async () => {
     if (!title.trim()) {
       toast({
         title: "Titre requis",
@@ -105,9 +104,10 @@ const CreatePage = () => {
     }
 
     try {
+      setIsCreating(true);
       const userId = getUser()?.id || "anonymous";
 
-      const newDeck = createDeck({
+      const newDeck = await createDeck({
         title: title.trim(),
         description: description.trim(),
         coverImage,
@@ -121,7 +121,6 @@ const CreatePage = () => {
         description: "Vous pouvez maintenant ajouter des flashcards à votre deck",
       });
 
-      // Navigate to the deck page
       navigate(`/deck/${newDeck.id}`);
     } catch (error) {
       console.error("Error creating deck:", error);
@@ -130,6 +129,8 @@ const CreatePage = () => {
         description: "Impossible de créer le deck",
         variant: "destructive",
       });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -278,9 +279,18 @@ const CreatePage = () => {
             <Button variant="outline" onClick={() => navigate("/")}>
               Annuler
             </Button>
-            <Button onClick={handleCreateDeck}>
-              <Save className="mr-2 h-4 w-4" />
-              Créer le deck
+            <Button onClick={handleCreateDeck} disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  Création...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Créer le deck
+                </>
+              )}
             </Button>
           </CardFooter>
         </Card>
