@@ -7,14 +7,18 @@ import { DeckCardProps } from "@/components/DeckCard";
 export const usePublicDecks = () => {
   const [decks, setDecks] = useState<DeckCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [allTags, setAllTags] = useState<string[]>([]);
   const { toast } = useToast();
+  const [lastFetch, setLastFetch] = useState<Date>(new Date());
 
   const fetchPublicDecks = async () => {
     setIsLoading(true);
+    setError(null);
     console.log("ExplorePage: Fetching public decks from Supabase");
     
     try {
+      // Récupérer tous les decks publics
       const { data: publicDecks, error } = await supabase
         .from('decks')
         .select('*')
@@ -22,17 +26,19 @@ export const usePublicDecks = () => {
         
       if (error) {
         console.error("Error fetching public decks:", error);
+        setError("Impossible de charger les decks publics");
         toast({
           title: "Erreur",
           description: "Impossible de charger les decks publics",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
       console.log(`ExplorePage: Found ${publicDecks.length} public decks from Supabase`);
       
-      // Extract all unique tags
+      // Extraire tous les tags uniques
       const tags = new Set<string>();
       publicDecks.forEach(deck => {
         if (deck.tags && Array.isArray(deck.tags)) {
@@ -41,21 +47,21 @@ export const usePublicDecks = () => {
       });
       setAllTags(Array.from(tags));
 
-      // Create deck cards for display
-      const deckCards = await Promise.all(publicDecks.map(async (deck) => {
-        // Get flashcards count
+      // Créer les cartes de deck pour l'affichage avec des requêtes parallèles
+      const deckCardsPromises = publicDecks.map(async (deck) => {
+        // Obtenir le nombre de flashcards
         const { count: cardCount } = await supabase
           .from('flashcards')
           .select('*', { count: 'exact', head: true })
           .eq('deck_id', deck.id);
           
-        // Get author name
+        // Obtenir le nom de l'auteur
         let authorName = "Utilisateur";
         const { data: profile } = await supabase
           .from('profiles')
           .select('username')
           .eq('id', deck.author_id)
-          .single();
+          .maybeSingle();
           
         if (profile && profile.username) {
           authorName = profile.username;
@@ -71,12 +77,26 @@ export const usePublicDecks = () => {
           author: authorName,
           isPublic: deck.is_public,
         };
-      }));
+      });
+      
+      try {
+        const deckCards = await Promise.all(deckCardsPromises);
+        setDecks(deckCards);
+      } catch (err) {
+        console.error("Error processing deck data:", err);
+        toast({
+          title: "Avertissement",
+          description: "Certaines informations de decks n'ont pas pu être chargées",
+          variant: "default",
+        });
+        // Continue with whatever data we have
+      }
 
-      setDecks(deckCards);
+      setLastFetch(new Date());
       setIsLoading(false);
     } catch (error) {
       console.error("Unexpected error:", error);
+      setError("Une erreur inattendue s'est produite");
       toast({
         title: "Erreur",
         description: "Une erreur inattendue s'est produite",
@@ -87,6 +107,8 @@ export const usePublicDecks = () => {
   };
 
   const setupRealtimeSubscription = () => {
+    console.log("Setting up realtime subscription for public decks");
+    
     const channel = supabase
       .channel('public-decks-changes')
       .on(
@@ -95,10 +117,12 @@ export const usePublicDecks = () => {
         (payload) => {
           console.log('Deck change detected:', payload);
           
-          // If a deck was made public or a new public deck was created
+          // Si un deck a été rendu public ou un nouveau deck public a été créé
           if (
-            (payload.eventType === 'INSERT' && payload.new.is_public) || 
-            (payload.eventType === 'UPDATE' && payload.new.is_public && (!payload.old.is_public))
+            (payload.eventType === 'INSERT' && payload.new?.is_public) || 
+            (payload.eventType === 'UPDATE' && 
+             payload.new?.is_public && 
+             (!payload.old?.is_public))
           ) {
             toast({
               title: "Nouveaux decks disponibles",
@@ -107,33 +131,59 @@ export const usePublicDecks = () => {
             fetchPublicDecks();
           }
           
-          // If a public deck was made private or deleted
+          // Si un deck public a été rendu privé ou supprimé
           if (
-            (payload.eventType === 'UPDATE' && !payload.new.is_public && payload.old.is_public) || 
-            (payload.eventType === 'DELETE' && payload.old.is_public)
+            (payload.eventType === 'UPDATE' && 
+             !payload.new?.is_public && 
+             payload.old?.is_public) || 
+            (payload.eventType === 'DELETE' && 
+             payload.old?.is_public)
           ) {
             fetchPublicDecks();
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
 
     // Return unsubscribe function
     return () => {
+      console.log("Cleaning up subscription");
       supabase.removeChannel(channel);
     };
   };
 
+  // Fetch decks on component mount and setup subscription
   useEffect(() => {
     fetchPublicDecks();
     
     // Set up realtime subscription
     const unsubscribe = setupRealtimeSubscription();
     
+    // Auto refresh every 5 minutes to ensure data freshness
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      
+      if (lastFetch < fiveMinutesAgo) {
+        console.log("Auto-refreshing decks after 5 minutes");
+        fetchPublicDecks();
+      }
+    }, 60000); // Check every minute
+    
     return () => {
       unsubscribe();
+      clearInterval(intervalId);
     };
   }, []);
 
-  return { decks, isLoading, allTags, fetchPublicDecks };
+  return { 
+    decks, 
+    isLoading, 
+    error, 
+    allTags, 
+    fetchPublicDecks,
+    lastFetch
+  };
 };

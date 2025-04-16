@@ -1,20 +1,26 @@
 
 import DeckCard, { DeckCardProps } from "@/components/DeckCard";
+import { Button } from "@/components/ui/button";
 
 interface DeckGridProps {
   decks: DeckCardProps[];
   onClearFilters?: () => void;
+  emptyMessage?: string;
 }
 
-export const DeckGrid = ({ decks, onClearFilters }: DeckGridProps) => {
+export const DeckGrid = ({ 
+  decks, 
+  onClearFilters,
+  emptyMessage = "Aucun deck ne correspond à votre recherche" 
+}: DeckGridProps) => {
   if (decks.length === 0) {
     return (
       <div className="text-center py-12">
         <p className="text-lg text-muted-foreground">
-          Aucun deck ne correspond à votre recherche
+          {emptyMessage}
         </p>
         {onClearFilters && (
-          <Button variant="link" onClick={onClearFilters}>
+          <Button variant="link" onClick={onClearFilters} className="mt-2">
             Réinitialiser les filtres
           </Button>
         )}
@@ -30,6 +36,3 @@ export const DeckGrid = ({ decks, onClearFilters }: DeckGridProps) => {
     </div>
   );
 };
-
-// Don't forget to import Button
-import { Button } from "@/components/ui/button";
