@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { SearchIcon, Filter, X } from "lucide-react";
 import DeckCard, { DeckCardProps } from "@/components/DeckCard";
 import { getDecks, getFlashcardsByDeck, Deck, getUser } from "@/lib/localStorage";
+import { useToast } from "@/hooks/use-toast";
 
 const ExplorePage = () => {
   const [decks, setDecks] = useState<DeckCardProps[]>([]);
@@ -14,23 +14,23 @@ const ExplorePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    // Get user for author name
+  const loadPublicDecks = () => {
+    console.log("ExplorePage: Refreshing public decks");
     const user = getUser();
-
-    // Load decks from localStorage
     const allDecks = getDecks();
+    const publicDecks = allDecks.filter(deck => deck.isPublic);
     
-    // Get unique tags from all decks
+    console.log(`ExplorePage: Found ${publicDecks.length} public decks`);
+    
     const tags = new Set<string>();
-    allDecks.forEach(deck => {
+    publicDecks.forEach(deck => {
       deck.tags.forEach(tag => tags.add(tag));
     });
     setAllTags(Array.from(tags));
 
-    // Convert to DeckCardProps
-    const deckCards = allDecks.filter(deck => deck.isPublic).map(deck => {
+    const deckCards = publicDecks.map(deck => {
       const cards = getFlashcardsByDeck(deck.id);
       return {
         id: deck.id,
@@ -39,14 +39,56 @@ const ExplorePage = () => {
         coverImage: deck.coverImage,
         cardCount: cards.length,
         tags: deck.tags,
-        author: user?.name || "Anonyme",
+        author: deck.authorId === user?.id ? user?.name || "Anonyme" : "Utilisateur",
         isPublic: deck.isPublic,
       };
     });
 
-    setDecks(deckCards);
-    setFilteredDecks(deckCards);
-  }, []);
+    if (JSON.stringify(deckCards) !== JSON.stringify(decks)) {
+      console.log("ExplorePage: Decks have changed, updating state");
+      setDecks(deckCards);
+    }
+  };
+
+  useEffect(() => {
+    loadPublicDecks();
+    
+    const initialRefreshTimeout = setTimeout(() => {
+      loadPublicDecks();
+    }, 1000);
+    
+    const intervalId = setInterval(() => {
+      const allDecks = getDecks();
+      const publicDecks = allDecks.filter(deck => deck.isPublic);
+      
+      const currentDecks = decks.map(d => d.id);
+      
+      const newPublicDecks = publicDecks.filter(deck => !currentDecks.includes(deck.id));
+      
+      if (newPublicDecks.length > 0) {
+        console.log(`ExplorePage: Found ${newPublicDecks.length} new public decks, refreshing`);
+        loadPublicDecks();
+        toast({
+          title: "Nouveaux decks disponibles",
+          description: `${newPublicDecks.length} nouveau(x) deck(s) public(s) ajouté(s)`,
+        });
+      }
+      
+      const currentPublicDeckIds = publicDecks.map(d => d.id);
+      const removedDecks = decks.filter(d => !currentPublicDeckIds.includes(d.id));
+      
+      if (removedDecks.length > 0) {
+        console.log(`ExplorePage: ${removedDecks.length} decks no longer public, refreshing`);
+        loadPublicDecks();
+      }
+      
+    }, 5000);
+    
+    return () => {
+      clearTimeout(initialRefreshTimeout);
+      clearInterval(intervalId);
+    };
+  }, [decks]);
 
   useEffect(() => {
     filterDecks();
@@ -55,7 +97,6 @@ const ExplorePage = () => {
   const filterDecks = () => {
     let result = [...decks];
 
-    // Apply search term filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       result = result.filter(
@@ -66,7 +107,6 @@ const ExplorePage = () => {
       );
     }
 
-    // Apply tag filters
     if (activeFilters.length > 0) {
       result = result.filter(deck => 
         activeFilters.some(filter => deck.tags.includes(filter))
@@ -98,6 +138,13 @@ const ExplorePage = () => {
             Découvrez et importez des decks de flashcards créés par la communauté
           </p>
         </div>
+        <Button
+          onClick={loadPublicDecks}
+          variant="outline"
+          className="self-start md:self-auto"
+        >
+          Actualiser
+        </Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
