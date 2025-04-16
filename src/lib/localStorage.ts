@@ -80,13 +80,35 @@ const setItem = <T>(key: string, value: T): void => {
 
 // Import Supabase client
 import { supabase } from "@/integrations/supabase/client";
+// Import session manager to use session key as user ID
+import { getSessionKey } from '@/lib/sessionManager';
 
 // User functions
 export const getUser = (): User | null => {
-  return getItem<User | null>(STORAGE_KEYS.USER, null);
+  const user = getItem<User | null>(STORAGE_KEYS.USER, null);
+  
+  // Si l'utilisateur existe et que nous avons une clé de session, assurez-vous que l'ID est la clé de session
+  if (user) {
+    const sessionKey = getSessionKey();
+    if (sessionKey) {
+      // Utiliser la clé de session comme ID utilisateur si elle est différente
+      if (user.id !== sessionKey) {
+        user.id = sessionKey;
+        setUser(user);
+      }
+    }
+  }
+  
+  return user;
 };
 
 export const setUser = (user: User): void => {
+  // S'assurer que l'ID utilisateur est la clé de session, si disponible
+  const sessionKey = getSessionKey();
+  if (sessionKey) {
+    user.id = sessionKey;
+  }
+  
   setItem(STORAGE_KEYS.USER, user);
 };
 
@@ -147,8 +169,13 @@ export const createDeck = async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedA
   const decks = getDecks();
   const now = new Date().toISOString();
   
+  // Utiliser la clé de session comme ID utilisateur si disponible
+  const sessionKey = getSessionKey();
+  const authorId = sessionKey || deck.authorId;
+  
   const newDeck: Deck = {
     ...deck,
+    authorId,
     id: `deck_${Date.now()}`,
     createdAt: now,
     updatedAt: now,
@@ -168,18 +195,24 @@ export const createDeck = async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedA
 // Fonction pour sauvegarder un deck dans Supabase
 export const saveToSupabase = async (deck: Deck): Promise<boolean> => {
   try {
+    // S'assurer que l'authorId est la clé de session, si disponible
+    const sessionKey = getSessionKey();
+    const authorId = sessionKey || deck.authorId;
+    
     // Convertir le format local en format Supabase
     const supabaseDeck = {
       id: deck.id,
       title: deck.title,
       description: deck.description,
       cover_image: deck.coverImage,
-      author_id: deck.authorId,
+      author_id: authorId,
       is_public: deck.isPublic,
       tags: deck.tags,
       created_at: deck.createdAt,
       updated_at: deck.updatedAt
     };
+
+    console.log("Saving deck to Supabase with author_id:", authorId);
 
     const { error } = await supabase
       .from('decks')

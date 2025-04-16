@@ -1,37 +1,48 @@
 
 import { useState, useEffect } from 'react';
 import { getUser } from '@/lib/localStorage';
+import { getSessionKey } from '@/lib/sessionManager';
 import DeckCard from '@/components/DeckCard';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { LoadingState } from '@/components/explore/LoadingState';
 
 const MyDecksPage = () => {
   const [decks, setDecks] = useState([]);
   const [user, setUser] = useState(getUser());
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const location = useLocation();
   const { toast } = useToast();
 
   // Fonction pour rafraîchir la liste des decks
   const refreshDecks = async () => {
     setIsLoading(true);
+    setError(null);
     const currentUser = getUser();
     setUser(currentUser);
     
     if (!currentUser || !currentUser.id) {
       setIsLoading(false);
+      setError("Utilisateur non trouvé");
       return;
     }
     
     try {
+      // Utiliser la clé de session comme ID utilisateur si elle existe
+      const sessionKey = getSessionKey();
+      const userId = sessionKey || currentUser.id;
+      
+      console.log('Fetching decks for user with ID:', userId);
+      
       // Récupérer les decks de l'utilisateur depuis Supabase
       const { data: userDecks, error } = await supabase
         .from('decks')
         .select('*')
-        .eq('author_id', currentUser.id);
+        .eq('author_id', userId);
         
       if (error) {
         console.error('Error fetching decks:', error);
@@ -40,15 +51,15 @@ const MyDecksPage = () => {
           description: "Impossible de charger vos decks",
           variant: "destructive",
         });
+        setError("Impossible de charger vos decks");
         setIsLoading(false);
         return;
       }
       
-      console.log('Refreshing decks for user:', currentUser.id);
-      console.log('Found decks:', userDecks.length);
+      console.log('Found decks:', userDecks?.length || 0);
       
       // Créer les cartes de deck
-      const deckCards = await Promise.all(userDecks.map(async (deck) => {
+      const deckCards = await Promise.all((userDecks || []).map(async (deck) => {
         // Compter les flashcards
         const { count: cardCount } = await supabase
           .from('flashcards')
@@ -70,12 +81,15 @@ const MyDecksPage = () => {
       setDecks(deckCards);
       setIsLoading(false);
       
-      toast({
-        title: "Liste mise à jour",
-        description: `${deckCards.length} deck(s) trouvé(s)`,
-      });
+      if (deckCards.length > 0) {
+        toast({
+          title: "Liste mise à jour",
+          description: `${deckCards.length} deck(s) trouvé(s)`,
+        });
+      }
     } catch (error) {
       console.error('Error in refreshDecks:', error);
+      setError("Une erreur est survenue lors du chargement des decks");
       setIsLoading(false);
     }
   };
@@ -90,6 +104,9 @@ const MyDecksPage = () => {
     const currentUser = getUser();
     if (!currentUser || !currentUser.id) return;
     
+    const sessionKey = getSessionKey();
+    const userId = sessionKey || currentUser.id;
+    
     const channel = supabase
       .channel('user-decks-changes')
       .on(
@@ -98,7 +115,7 @@ const MyDecksPage = () => {
           event: '*', 
           schema: 'public', 
           table: 'decks',
-          filter: `author_id=eq.${currentUser.id}`
+          filter: `author_id=eq.${userId}`
         },
         (payload) => {
           console.log('Deck change detected:', payload);
@@ -131,10 +148,16 @@ const MyDecksPage = () => {
       </div>
 
       {isLoading ? (
+        <LoadingState />
+      ) : error ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">
-            Chargement de vos decks...
+          <p className="text-lg text-muted-foreground mb-4">
+            {error}
           </p>
+          <Button onClick={refreshDecks}>
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Réessayer
+          </Button>
         </div>
       ) : decks.length === 0 ? (
         <div className="text-center py-12">
