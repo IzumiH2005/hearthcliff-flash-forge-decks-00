@@ -1,3 +1,4 @@
+
 // Types
 export interface User {
   id: string;
@@ -78,37 +79,12 @@ const setItem = <T>(key: string, value: T): void => {
   }
 };
 
-// Import Supabase client
-import { supabase } from "@/integrations/supabase/client";
-// Import session manager to use session key as user ID
-import { getSessionKey } from '@/lib/sessionManager';
-
 // User functions
 export const getUser = (): User | null => {
-  const user = getItem<User | null>(STORAGE_KEYS.USER, null);
-  
-  // Si l'utilisateur existe et que nous avons une clé de session, assurez-vous que l'ID est la clé de session
-  if (user) {
-    const sessionKey = getSessionKey();
-    if (sessionKey) {
-      // Utiliser la clé de session comme ID utilisateur si elle est différente
-      if (user.id !== sessionKey) {
-        user.id = sessionKey;
-        setUser(user);
-      }
-    }
-  }
-  
-  return user;
+  return getItem<User | null>(STORAGE_KEYS.USER, null);
 };
 
 export const setUser = (user: User): void => {
-  // S'assurer que l'ID utilisateur est la clé de session, si disponible
-  const sessionKey = getSessionKey();
-  if (sessionKey) {
-    user.id = sessionKey;
-  }
-  
   setItem(STORAGE_KEYS.USER, user);
 };
 
@@ -131,120 +107,29 @@ export const getDeck = (id: string): Deck | null => {
   return decks.find(deck => deck.id === id) || null;
 };
 
-// Fonction pour récupérer un deck depuis Supabase
-export const fetchDeckFromSupabase = async (id: string): Promise<Deck | null> => {
-  try {
-    const { data: deckData, error } = await supabase
-      .from('decks')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error || !deckData) {
-      console.error("Error fetching deck from Supabase:", error);
-      return null;
-    }
-
-    // Convertir le format Supabase en format Deck local
-    const deck: Deck = {
-      id: deckData.id,
-      title: deckData.title,
-      description: deckData.description || "",
-      coverImage: deckData.cover_image,
-      authorId: deckData.author_id,
-      isPublic: deckData.is_public,
-      tags: deckData.tags || [],
-      createdAt: deckData.created_at,
-      updatedAt: deckData.updated_at,
-    };
-
-    return deck;
-  } catch (error) {
-    console.error("Unexpected error fetching deck from Supabase:", error);
-    return null;
-  }
-};
-
-export const createDeck = async (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>): Promise<Deck> => {
+export const createDeck = (deck: Omit<Deck, 'id' | 'createdAt' | 'updatedAt'>): Deck => {
   const decks = getDecks();
   const now = new Date().toISOString();
   
-  // Utiliser la clé de session comme ID utilisateur si disponible
-  const sessionKey = getSessionKey();
-  const authorId = sessionKey || deck.authorId;
-  
   const newDeck: Deck = {
     ...deck,
-    authorId,
     id: `deck_${Date.now()}`,
     createdAt: now,
     updatedAt: now,
   };
   
-  // Sauvegarder localement
   setItem(STORAGE_KEYS.DECKS, [...decks, newDeck]);
-  
-  // Si public, sauvegarder également dans Supabase
-  if (deck.isPublic) {
-    await saveToSupabase(newDeck);
-  }
-  
   return newDeck;
 };
 
-// Fonction pour sauvegarder un deck dans Supabase
-export const saveToSupabase = async (deck: Deck): Promise<boolean> => {
-  try {
-    // S'assurer que l'authorId est la clé de session, si disponible
-    const sessionKey = getSessionKey();
-    const authorId = sessionKey || deck.authorId;
-    
-    // Convertir le format local en format Supabase
-    const supabaseDeck = {
-      id: deck.id,
-      title: deck.title,
-      description: deck.description,
-      cover_image: deck.coverImage,
-      author_id: authorId,
-      is_public: deck.isPublic,
-      tags: deck.tags,
-      created_at: deck.createdAt,
-      updated_at: deck.updatedAt
-    };
-
-    console.log("Saving deck to Supabase with author_id:", authorId);
-
-    const { error } = await supabase
-      .from('decks')
-      .upsert(supabaseDeck, { 
-        onConflict: 'id',
-        ignoreDuplicates: false 
-      });
-
-    if (error) {
-      console.error("Error saving deck to Supabase:", error);
-      return false;
-    }
-
-    console.log("Deck successfully saved to Supabase:", deck.id);
-    return true;
-  } catch (error) {
-    console.error("Unexpected error saving deck to Supabase:", error);
-    return false;
-  }
-};
-
-export const updateDeck = async (id: string, deckData: Partial<Deck>): Promise<Deck | null> => {
+export const updateDeck = (id: string, deckData: Partial<Deck>): Deck | null => {
   const decks = getDecks();
   const deckIndex = decks.findIndex(deck => deck.id === id);
   
   if (deckIndex === -1) return null;
   
-  const currentDeck = decks[deckIndex];
-  const wasPublic = currentDeck.isPublic;
-  
   const updatedDeck = { 
-    ...currentDeck, 
+    ...decks[deckIndex], 
     ...deckData, 
     updatedAt: new Date().toISOString() 
   };
@@ -252,62 +137,18 @@ export const updateDeck = async (id: string, deckData: Partial<Deck>): Promise<D
   decks[deckIndex] = updatedDeck;
   setItem(STORAGE_KEYS.DECKS, decks);
   
-  // Si le deck devient public ou était déjà public et a été mis à jour
-  if (updatedDeck.isPublic) {
-    const saved = await saveToSupabase(updatedDeck);
-    if (!saved) {
-      console.error("Failed to save public deck to Supabase");
-    } else if (!wasPublic) {
-      console.log("Deck changed from private to public and saved to Supabase");
-    }
-  }
-  // Si le deck était public mais ne l'est plus, le supprimer de Supabase
-  else if (wasPublic && !updatedDeck.isPublic) {
-    try {
-      const { error } = await supabase
-        .from('decks')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        console.error("Error removing deck from Supabase:", error);
-      } else {
-        console.log("Deck successfully removed from Supabase (now private)");
-      }
-    } catch (error) {
-      console.error("Unexpected error removing deck from Supabase:", error);
-    }
-  }
-  
   return updatedDeck;
 };
 
-export const deleteDeck = async (id: string): Promise<boolean> => {
+export const deleteDeck = (id: string): boolean => {
   const decks = getDecks();
-  const deckToDelete = decks.find(deck => deck.id === id);
   const updatedDecks = decks.filter(deck => deck.id !== id);
   
   if (updatedDecks.length === decks.length) return false;
   
   setItem(STORAGE_KEYS.DECKS, updatedDecks);
   
-  // Si le deck était public, le supprimer également de Supabase
-  if (deckToDelete && deckToDelete.isPublic) {
-    try {
-      const { error } = await supabase
-        .from('decks')
-        .delete()
-        .eq('id', id);
-        
-      if (error) {
-        console.error("Error deleting deck from Supabase:", error);
-      }
-    } catch (error) {
-      console.error("Unexpected error deleting deck from Supabase:", error);
-    }
-  }
-  
-  // Supprimer les thèmes et flashcards associés
+  // Delete related themes and flashcards
   const themes = getThemes();
   const updatedThemes = themes.filter(theme => theme.deckId !== id);
   setItem(STORAGE_KEYS.THEMES, updatedThemes);
@@ -522,31 +363,6 @@ export const initializeDefaultUser = (): User => {
   }
   
   return currentUser;
-};
-
-// Synchroniser tous les decks publics vers Supabase
-export const syncPublicDecksToSupabase = async (): Promise<number> => {
-  const decks = getDecks();
-  const publicDecks = decks.filter(deck => deck.isPublic);
-  
-  if (publicDecks.length === 0) {
-    console.log("No public decks to sync to Supabase");
-    return 0;
-  }
-  
-  console.log(`Syncing ${publicDecks.length} public decks to Supabase`);
-  
-  let successCount = 0;
-  
-  for (const deck of publicDecks) {
-    const success = await saveToSupabase(deck);
-    if (success) {
-      successCount++;
-    }
-  }
-  
-  console.log(`Successfully synced ${successCount}/${publicDecks.length} decks to Supabase`);
-  return successCount;
 };
 
 // Sample data generator for demo

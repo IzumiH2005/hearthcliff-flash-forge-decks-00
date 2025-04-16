@@ -1,20 +1,94 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { SearchIcon, Filter, X } from "lucide-react";
+import DeckCard, { DeckCardProps } from "@/components/DeckCard";
+import { getDecks, getFlashcardsByDeck, Deck, getUser } from "@/lib/localStorage";
 import { useToast } from "@/hooks/use-toast";
-import { SearchBar } from "@/components/explore/SearchBar";
-import { FilterTags } from "@/components/explore/FilterTags";
-import { DeckGrid } from "@/components/explore/DeckGrid";
-import { LoadingState } from "@/components/explore/LoadingState";
-import { usePublicDecks } from "@/hooks/usePublicDecks";
-import { DeckCardProps } from "@/components/DeckCard";
 
 const ExplorePage = () => {
-  const { decks, isLoading, allTags, fetchPublicDecks } = usePublicDecks();
+  const [decks, setDecks] = useState<DeckCardProps[]>([]);
   const [filteredDecks, setFilteredDecks] = useState<DeckCardProps[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const { toast } = useToast();
+
+  const loadPublicDecks = () => {
+    console.log("ExplorePage: Refreshing public decks");
+    const user = getUser();
+    const allDecks = getDecks();
+    const publicDecks = allDecks.filter(deck => deck.isPublic);
+    
+    console.log(`ExplorePage: Found ${publicDecks.length} public decks`);
+    
+    const tags = new Set<string>();
+    publicDecks.forEach(deck => {
+      deck.tags.forEach(tag => tags.add(tag));
+    });
+    setAllTags(Array.from(tags));
+
+    const deckCards = publicDecks.map(deck => {
+      const cards = getFlashcardsByDeck(deck.id);
+      return {
+        id: deck.id,
+        title: deck.title,
+        description: deck.description,
+        coverImage: deck.coverImage,
+        cardCount: cards.length,
+        tags: deck.tags,
+        author: deck.authorId === user?.id ? user?.name || "Anonyme" : "Utilisateur",
+        isPublic: deck.isPublic,
+      };
+    });
+
+    if (JSON.stringify(deckCards) !== JSON.stringify(decks)) {
+      console.log("ExplorePage: Decks have changed, updating state");
+      setDecks(deckCards);
+    }
+  };
+
+  useEffect(() => {
+    loadPublicDecks();
+    
+    const initialRefreshTimeout = setTimeout(() => {
+      loadPublicDecks();
+    }, 1000);
+    
+    const intervalId = setInterval(() => {
+      const allDecks = getDecks();
+      const publicDecks = allDecks.filter(deck => deck.isPublic);
+      
+      const currentDecks = decks.map(d => d.id);
+      
+      const newPublicDecks = publicDecks.filter(deck => !currentDecks.includes(deck.id));
+      
+      if (newPublicDecks.length > 0) {
+        console.log(`ExplorePage: Found ${newPublicDecks.length} new public decks, refreshing`);
+        loadPublicDecks();
+        toast({
+          title: "Nouveaux decks disponibles",
+          description: `${newPublicDecks.length} nouveau(x) deck(s) public(s) ajouté(s)`,
+        });
+      }
+      
+      const currentPublicDeckIds = publicDecks.map(d => d.id);
+      const removedDecks = decks.filter(d => !currentPublicDeckIds.includes(d.id));
+      
+      if (removedDecks.length > 0) {
+        console.log(`ExplorePage: ${removedDecks.length} decks no longer public, refreshing`);
+        loadPublicDecks();
+      }
+      
+    }, 5000);
+    
+    return () => {
+      clearTimeout(initialRefreshTimeout);
+      clearInterval(intervalId);
+    };
+  }, [decks]);
 
   useEffect(() => {
     filterDecks();
@@ -65,52 +139,113 @@ const ExplorePage = () => {
           </p>
         </div>
         <Button
-          onClick={fetchPublicDecks}
+          onClick={loadPublicDecks}
           variant="outline"
           className="self-start md:self-auto"
-          disabled={isLoading}
         >
-          {isLoading ? "Chargement..." : "Actualiser"}
+          Actualiser
         </Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
-        <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
-        <FilterTags 
-          allTags={allTags} 
-          activeFilters={activeFilters} 
-          toggleFilter={toggleFilter} 
-          clearFilters={clearFilters} 
-        />
+        <div className="relative flex-1">
+          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Rechercher des decks..."
+            className="pl-9"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          {searchTerm && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+              onClick={() => setSearchTerm("")}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex gap-2 flex-wrap">
+          {activeFilters.length > 0 && (
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              <X className="mr-1 h-3 w-3" />
+              Effacer les filtres
+            </Button>
+          )}
+        </div>
       </div>
 
-      {isLoading ? (
-        <LoadingState />
-      ) : (
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="all">Tous</TabsTrigger>
-            <TabsTrigger value="recent">Récents</TabsTrigger>
-            <TabsTrigger value="popular">Populaires</TabsTrigger>
-          </TabsList>
+      <div className="mb-6 flex flex-wrap gap-2">
+        <div className="flex items-center mr-2">
+          <Filter className="mr-1 h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">Filtres:</span>
+        </div>
+        {allTags.map(tag => (
+          <Badge
+            key={tag}
+            variant={activeFilters.includes(tag) ? "default" : "outline"}
+            className="cursor-pointer"
+            onClick={() => toggleFilter(tag)}
+          >
+            {tag}
+          </Badge>
+        ))}
+      </div>
 
-          <TabsContent value="all" className="mt-0">
-            <DeckGrid decks={filteredDecks} onClearFilters={clearFilters} />
-          </TabsContent>
+      <Tabs defaultValue="all" className="w-full">
+        <TabsList className="mb-6">
+          <TabsTrigger value="all">Tous</TabsTrigger>
+          <TabsTrigger value="recent">Récents</TabsTrigger>
+          <TabsTrigger value="popular">Populaires</TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="recent" className="mt-0">
-            <DeckGrid 
-              decks={filteredDecks.sort((a, b) => b.id.localeCompare(a.id))}
-            />
-          </TabsContent>
+        <TabsContent value="all" className="mt-0">
+          {filteredDecks.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDecks.map((deck) => (
+                <DeckCard key={deck.id} {...deck} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-lg text-muted-foreground">
+                Aucun deck ne correspond à votre recherche
+              </p>
+              <Button variant="link" onClick={clearFilters}>
+                Réinitialiser les filtres
+              </Button>
+            </div>
+          )}
+        </TabsContent>
 
-          <TabsContent value="popular" className="mt-0">
-            <DeckGrid 
-              decks={filteredDecks.sort((a, b) => b.cardCount - a.cardCount)}
-            />
-          </TabsContent>
-        </Tabs>
-      )}
+        <TabsContent value="recent" className="mt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredDecks
+              .sort((a, b) => {
+                const deckA = getDecks().find(d => d.id === a.id);
+                const deckB = getDecks().find(d => d.id === b.id);
+                if (!deckA || !deckB) return 0;
+                return new Date(deckB.createdAt).getTime() - new Date(deckA.createdAt).getTime();
+              })
+              .map((deck) => (
+                <DeckCard key={deck.id} {...deck} />
+              ))}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="popular" className="mt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredDecks
+              .sort((a, b) => b.cardCount - a.cardCount)
+              .map((deck) => (
+                <DeckCard key={deck.id} {...deck} />
+              ))}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

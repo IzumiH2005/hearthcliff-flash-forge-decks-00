@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
@@ -43,13 +44,11 @@ const EditDeckPage = () => {
   const [isOwner, setIsOwner] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isSaving, setIsSaving] = useState(false);
   
   // Deck form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
-  const [wasPublic, setWasPublic] = useState(false);
   const [coverImage, setCoverImage] = useState<string | undefined>(undefined);
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
@@ -85,14 +84,13 @@ const EditDeckPage = () => {
     setTitle(deckData.title);
     setDescription(deckData.description);
     setIsPublic(deckData.isPublic);
-    setWasPublic(deckData.isPublic);
     setCoverImage(deckData.coverImage);
     setTags(deckData.tags || []);
     setIsOwner(userIsOwner);
     setIsLoading(false);
   }, [id, navigate, toast]);
   
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!id) return;
     
     if (!title.trim()) {
@@ -104,18 +102,8 @@ const EditDeckPage = () => {
       return;
     }
     
-    setIsSaving(true);
-    
     try {
-      // Afficher un toast différent si le deck change de statut public/privé
-      if (!wasPublic && isPublic) {
-        toast({
-          title: "Publication du deck",
-          description: "Le deck est en cours de publication...",
-        });
-      }
-      
-      const updatedDeck = await updateDeck(id, {
+      const updatedDeck = updateDeck(id, {
         title: title.trim(),
         description: description.trim(),
         isPublic,
@@ -125,20 +113,10 @@ const EditDeckPage = () => {
       
       if (updatedDeck) {
         setDeck(updatedDeck);
-        
-        // Toast spécifique si le deck est devenu public
-        if (!wasPublic && isPublic) {
-          toast({
-            title: "Deck publié",
-            description: "Le deck est maintenant visible par tous les utilisateurs",
-          });
-          setWasPublic(true);
-        } else {
-          toast({
-            title: "Deck mis à jour",
-            description: "Les modifications ont été enregistrées avec succès",
-          });
-        }
+        toast({
+          title: "Deck mis à jour",
+          description: "Les modifications ont été enregistrées avec succès",
+        });
         
         // Navigate back to deck page
         navigate(`/deck/${id}`);
@@ -150,8 +128,6 @@ const EditDeckPage = () => {
         description: "Impossible de mettre à jour le deck",
         variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
     }
   };
   
@@ -404,45 +380,15 @@ const EditDeckPage = () => {
               )}
             </div>
           </div>
-          
-          {!wasPublic && isPublic && (
-            <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 text-sm">
-              <div className="flex items-start">
-                <Globe className="h-5 w-5 text-blue-500 mt-0.5 mr-2" />
-                <div>
-                  <p className="font-medium text-blue-800 dark:text-blue-300">
-                    Publication du deck
-                  </p>
-                  <p className="text-blue-700 dark:text-blue-400 mt-1">
-                    En rendant ce deck public, il sera visible par tous les utilisateurs dans la section Explorer.
-                    Les modifications ultérieures seront également visibles par tous.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </CardContent>
         
         <CardFooter className="flex justify-end space-x-2 pt-4 pb-4 bg-gradient-to-r from-indigo-50/50 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/10 rounded-b-lg">
           <Button variant="outline" asChild className="border-indigo-200 dark:border-indigo-800/30">
             <Link to={`/deck/${id}`}>Annuler</Link>
           </Button>
-          <Button 
-            onClick={handleSave} 
-            disabled={isSaving}
-            className="bg-indigo-500 hover:bg-indigo-600"
-          >
-            {isSaving ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Enregistrement...
-              </>
-            ) : (
-              <>
-                <Save className="mr-2 h-4 w-4" />
-                Enregistrer
-              </>
-            )}
+          <Button onClick={handleSave} className="bg-indigo-500 hover:bg-indigo-600">
+            <Save className="mr-2 h-4 w-4" />
+            Enregistrer
           </Button>
         </CardFooter>
       </Card>
