@@ -1,80 +1,114 @@
 
 import { useState, useEffect } from 'react';
-import { getDecks, type Deck } from '@/lib/localStorage';
 import { getUser } from '@/lib/localStorage';
 import DeckCard from '@/components/DeckCard';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
 import { Plus, RefreshCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const MyDecksPage = () => {
-  const [decks, setDecks] = useState<Deck[]>([]);
+  const [decks, setDecks] = useState([]);
   const [user, setUser] = useState(getUser());
+  const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const { toast } = useToast();
 
   // Fonction pour rafraîchir la liste des decks
-  const refreshDecks = () => {
-    // Force get latest user and decks data from localStorage
+  const refreshDecks = async () => {
+    setIsLoading(true);
     const currentUser = getUser();
     setUser(currentUser);
     
-    // Get fresh deck data
-    const allDecks = getDecks();
-    const userDecks = allDecks.filter(deck => deck.authorId === currentUser?.id);
+    if (!currentUser || !currentUser.id) {
+      setIsLoading(false);
+      return;
+    }
     
-    console.log('Refreshing decks for user:', currentUser?.id);
-    console.log('Found decks:', userDecks.length);
-    
-    setDecks(userDecks);
-    toast({
-      title: "Liste mise à jour",
-      description: `${userDecks.length} deck(s) trouvé(s)`,
-    });
+    try {
+      // Récupérer les decks de l'utilisateur depuis Supabase
+      const { data: userDecks, error } = await supabase
+        .from('decks')
+        .select('*')
+        .eq('author_id', currentUser.id);
+        
+      if (error) {
+        console.error('Error fetching decks:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger vos decks",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Refreshing decks for user:', currentUser.id);
+      console.log('Found decks:', userDecks.length);
+      
+      // Créer les cartes de deck
+      const deckCards = await Promise.all(userDecks.map(async (deck) => {
+        // Compter les flashcards
+        const { count: cardCount } = await supabase
+          .from('flashcards')
+          .select('*', { count: 'exact', head: true })
+          .eq('deck_id', deck.id);
+          
+        return {
+          id: deck.id,
+          title: deck.title,
+          description: deck.description || "",
+          cardCount: cardCount || 0,
+          coverImage: deck.cover_image,
+          tags: deck.tags || [],
+          author: currentUser?.name || 'Utilisateur',
+          isPublic: deck.is_public,
+        };
+      }));
+      
+      setDecks(deckCards);
+      setIsLoading(false);
+      
+      toast({
+        title: "Liste mise à jour",
+        description: `${deckCards.length} deck(s) trouvé(s)`,
+      });
+    } catch (error) {
+      console.error('Error in refreshDecks:', error);
+      setIsLoading(false);
+    }
   };
 
   // Refresh when navigation happens
   useEffect(() => {
-    // Always get the latest user when the component mounts or updates
-    const currentUser = getUser();
-    setUser(currentUser);
-    
-    // Filtrer uniquement les decks de l'utilisateur connecté
-    const userDecks = getDecks().filter(deck => deck.authorId === currentUser?.id);
-    console.log('Navigation refresh - User ID:', currentUser?.id);
-    console.log('Navigation refresh - Decks found:', userDecks.length);
-    setDecks(userDecks);
+    refreshDecks();
   }, [location.key]); // React to navigation changes
 
-  // Additional periodic refresh for better sync on published site
+  // Set up realtime subscription for deck changes
   useEffect(() => {
-    // Initial load
-    const initialUser = getUser();
-    console.log('Initial load - User ID:', initialUser?.id);
-    const initialDecks = getDecks().filter(deck => deck.authorId === initialUser?.id);
-    console.log('Initial load - Decks found:', initialDecks.length);
-    setDecks(initialDecks);
+    const currentUser = getUser();
+    if (!currentUser || !currentUser.id) return;
     
-    // First refresh after a short delay
-    const initialRefreshTimeout = setTimeout(() => {
-      refreshDecks();
-    }, 1000);
-    
-    // Set up an interval to check for updates more frequently
-    const intervalId = setInterval(() => {
-      const latestUser = getUser();
-      if (latestUser) {
-        const freshDecks = getDecks().filter(deck => deck.authorId === latestUser.id);
-        if (JSON.stringify(freshDecks) !== JSON.stringify(decks)) {
-          setDecks(freshDecks);
+    const channel = supabase
+      .channel('user-decks-changes')
+      .on(
+        'postgres_changes',
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'decks',
+          filter: `author_id=eq.${currentUser.id}`
+        },
+        (payload) => {
+          console.log('Deck change detected:', payload);
+          refreshDecks();
         }
-      }
-    }, 2000); // Check every 2 seconds
-    
+      )
+      .subscribe();
+      
     return () => {
-      clearTimeout(initialRefreshTimeout);
-      clearInterval(intervalId);
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -83,9 +117,9 @@ const MyDecksPage = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Mes Decks</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={refreshDecks}>
+          <Button variant="outline" onClick={refreshDecks} disabled={isLoading}>
             <RefreshCcw className="mr-2 h-4 w-4" />
-            Actualiser
+            {isLoading ? "Chargement..." : "Actualiser"}
           </Button>
           <Button asChild>
             <Link to="/create">
@@ -96,7 +130,13 @@ const MyDecksPage = () => {
         </div>
       </div>
 
-      {decks.length === 0 ? (
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground mb-4">
+            Chargement de vos decks...
+          </p>
+        </div>
+      ) : decks.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground mb-4">
             Vous n'avez pas encore créé de decks.
@@ -116,7 +156,7 @@ const MyDecksPage = () => {
               id={deck.id}
               title={deck.title}
               description={deck.description}
-              cardCount={0} // TODO: Implement card count calculation
+              cardCount={deck.cardCount}
               coverImage={deck.coverImage}
               tags={deck.tags}
               author={user?.name || 'Utilisateur'}

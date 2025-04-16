@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { SearchIcon, Filter, X } from "lucide-react";
 import DeckCard, { DeckCardProps } from "@/components/DeckCard";
 import { getDecks, getFlashcardsByDeck, Deck, getUser } from "@/lib/localStorage";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ExplorePage = () => {
   const [decks, setDecks] = useState<DeckCardProps[]>([]);
@@ -14,81 +16,133 @@ const ExplorePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const loadPublicDecks = () => {
-    console.log("ExplorePage: Refreshing public decks");
-    const user = getUser();
-    const allDecks = getDecks();
-    const publicDecks = allDecks.filter(deck => deck.isPublic);
+  const fetchPublicDecks = async () => {
+    setIsLoading(true);
+    console.log("ExplorePage: Fetching public decks from Supabase");
     
-    console.log(`ExplorePage: Found ${publicDecks.length} public decks`);
-    
-    const tags = new Set<string>();
-    publicDecks.forEach(deck => {
-      deck.tags.forEach(tag => tags.add(tag));
-    });
-    setAllTags(Array.from(tags));
+    try {
+      const { data: publicDecks, error } = await supabase
+        .from('decks')
+        .select('*')
+        .eq('is_public', true);
+        
+      if (error) {
+        console.error("Error fetching public decks:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les decks publics",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const deckCards = publicDecks.map(deck => {
-      const cards = getFlashcardsByDeck(deck.id);
-      return {
-        id: deck.id,
-        title: deck.title,
-        description: deck.description,
-        coverImage: deck.coverImage,
-        cardCount: cards.length,
-        tags: deck.tags,
-        author: deck.authorId === user?.id ? user?.name || "Anonyme" : "Utilisateur",
-        isPublic: deck.isPublic,
-      };
-    });
+      console.log(`ExplorePage: Found ${publicDecks.length} public decks from Supabase`);
+      
+      // Extract all unique tags
+      const tags = new Set<string>();
+      publicDecks.forEach(deck => {
+        if (deck.tags && Array.isArray(deck.tags)) {
+          deck.tags.forEach(tag => tags.add(tag));
+        }
+      });
+      setAllTags(Array.from(tags));
 
-    if (JSON.stringify(deckCards) !== JSON.stringify(decks)) {
-      console.log("ExplorePage: Decks have changed, updating state");
+      // Create deck cards for display
+      const deckCards = await Promise.all(publicDecks.map(async (deck) => {
+        // Get flashcards count
+        const { count: cardCount } = await supabase
+          .from('flashcards')
+          .select('*', { count: 'exact', head: true })
+          .eq('deck_id', deck.id);
+          
+        // Get author name
+        let authorName = "Utilisateur";
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', deck.author_id)
+          .single();
+          
+        if (profile && profile.username) {
+          authorName = profile.username;
+        }
+          
+        return {
+          id: deck.id,
+          title: deck.title,
+          description: deck.description || "",
+          coverImage: deck.cover_image,
+          cardCount: cardCount || 0,
+          tags: deck.tags || [],
+          author: authorName,
+          isPublic: deck.is_public,
+        };
+      }));
+
       setDecks(deckCards);
+      setIsLoading(false);
+    } catch (error) {
+      console.error("Unexpected error:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite",
+        variant: "destructive",
+      });
+      setIsLoading(false);
     }
   };
 
+  const setupRealtimeSubscription = () => {
+    const channel = supabase
+      .channel('public-decks-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'decks' },
+        (payload) => {
+          console.log('Deck change detected:', payload);
+          
+          // If a deck was made public or a new public deck was created
+          if (
+            (payload.eventType === 'INSERT' && payload.new.is_public) || 
+            (payload.eventType === 'UPDATE' && payload.new.is_public && (!payload.old.is_public))
+          ) {
+            toast({
+              title: "Nouveaux decks disponibles",
+              description: "Un nouveau deck public a été ajouté",
+            });
+            fetchPublicDecks();
+          }
+          
+          // If a public deck was made private or deleted
+          if (
+            (payload.eventType === 'UPDATE' && !payload.new.is_public && payload.old.is_public) || 
+            (payload.eventType === 'DELETE' && payload.old.is_public)
+          ) {
+            fetchPublicDecks();
+          }
+        }
+      )
+      .subscribe();
+
+    // Return unsubscribe function
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  };
+
   useEffect(() => {
-    loadPublicDecks();
+    fetchPublicDecks();
     
-    const initialRefreshTimeout = setTimeout(() => {
-      loadPublicDecks();
-    }, 1000);
-    
-    const intervalId = setInterval(() => {
-      const allDecks = getDecks();
-      const publicDecks = allDecks.filter(deck => deck.isPublic);
-      
-      const currentDecks = decks.map(d => d.id);
-      
-      const newPublicDecks = publicDecks.filter(deck => !currentDecks.includes(deck.id));
-      
-      if (newPublicDecks.length > 0) {
-        console.log(`ExplorePage: Found ${newPublicDecks.length} new public decks, refreshing`);
-        loadPublicDecks();
-        toast({
-          title: "Nouveaux decks disponibles",
-          description: `${newPublicDecks.length} nouveau(x) deck(s) public(s) ajouté(s)`,
-        });
-      }
-      
-      const currentPublicDeckIds = publicDecks.map(d => d.id);
-      const removedDecks = decks.filter(d => !currentPublicDeckIds.includes(d.id));
-      
-      if (removedDecks.length > 0) {
-        console.log(`ExplorePage: ${removedDecks.length} decks no longer public, refreshing`);
-        loadPublicDecks();
-      }
-      
-    }, 5000);
+    // Set up realtime subscription
+    const unsubscribe = setupRealtimeSubscription();
     
     return () => {
-      clearTimeout(initialRefreshTimeout);
-      clearInterval(intervalId);
+      unsubscribe();
     };
-  }, [decks]);
+  }, []);
 
   useEffect(() => {
     filterDecks();
@@ -139,11 +193,12 @@ const ExplorePage = () => {
           </p>
         </div>
         <Button
-          onClick={loadPublicDecks}
+          onClick={fetchPublicDecks}
           variant="outline"
           className="self-start md:self-auto"
+          disabled={isLoading}
         >
-          Actualiser
+          {isLoading ? "Chargement..." : "Actualiser"}
         </Button>
       </div>
 
@@ -195,57 +250,62 @@ const ExplorePage = () => {
         ))}
       </div>
 
-      <Tabs defaultValue="all" className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="all">Tous</TabsTrigger>
-          <TabsTrigger value="recent">Récents</TabsTrigger>
-          <TabsTrigger value="popular">Populaires</TabsTrigger>
-        </TabsList>
+      {isLoading ? (
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground">Chargement des decks...</p>
+        </div>
+      ) : (
+        <Tabs defaultValue="all" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="all">Tous</TabsTrigger>
+            <TabsTrigger value="recent">Récents</TabsTrigger>
+            <TabsTrigger value="popular">Populaires</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="all" className="mt-0">
-          {filteredDecks.length > 0 ? (
+          <TabsContent value="all" className="mt-0">
+            {filteredDecks.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredDecks.map((deck) => (
+                  <DeckCard key={deck.id} {...deck} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-lg text-muted-foreground">
+                  Aucun deck ne correspond à votre recherche
+                </p>
+                <Button variant="link" onClick={clearFilters}>
+                  Réinitialiser les filtres
+                </Button>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="recent" className="mt-0">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredDecks.map((deck) => (
-                <DeckCard key={deck.id} {...deck} />
-              ))}
+              {filteredDecks
+                .sort((a, b) => {
+                  // Pour le tri par date, on utilise l'ID comme approximation
+                  // car UUID contient un composant temporel
+                  return b.id.localeCompare(a.id);
+                })
+                .map((deck) => (
+                  <DeckCard key={deck.id} {...deck} />
+                ))}
             </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-muted-foreground">
-                Aucun deck ne correspond à votre recherche
-              </p>
-              <Button variant="link" onClick={clearFilters}>
-                Réinitialiser les filtres
-              </Button>
+          </TabsContent>
+
+          <TabsContent value="popular" className="mt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDecks
+                .sort((a, b) => b.cardCount - a.cardCount)
+                .map((deck) => (
+                  <DeckCard key={deck.id} {...deck} />
+                ))}
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="recent" className="mt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDecks
-              .sort((a, b) => {
-                const deckA = getDecks().find(d => d.id === a.id);
-                const deckB = getDecks().find(d => d.id === b.id);
-                if (!deckA || !deckB) return 0;
-                return new Date(deckB.createdAt).getTime() - new Date(deckA.createdAt).getTime();
-              })
-              .map((deck) => (
-                <DeckCard key={deck.id} {...deck} />
-              ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="popular" className="mt-0">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDecks
-              .sort((a, b) => b.cardCount - a.cardCount)
-              .map((deck) => (
-                <DeckCard key={deck.id} {...deck} />
-              ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   );
 };
