@@ -7,6 +7,7 @@ import { SearchIcon, Filter, X } from "lucide-react";
 import DeckCard, { DeckCardProps } from "@/components/DeckCard";
 import { getDecks, getFlashcardsByDeck, Deck, getUser } from "@/lib/localStorage";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ExplorePage = () => {
   const [decks, setDecks] = useState<DeckCardProps[]>([]);
@@ -16,79 +17,57 @@ const ExplorePage = () => {
   const [allTags, setAllTags] = useState<string[]>([]);
   const { toast } = useToast();
 
-  const loadPublicDecks = () => {
-    console.log("ExplorePage: Refreshing public decks");
-    const user = getUser();
-    const allDecks = getDecks();
-    const publicDecks = allDecks.filter(deck => deck.isPublic);
-    
-    console.log(`ExplorePage: Found ${publicDecks.length} public decks`);
-    
-    const tags = new Set<string>();
-    publicDecks.forEach(deck => {
-      deck.tags.forEach(tag => tags.add(tag));
-    });
-    setAllTags(Array.from(tags));
+  const loadPublicDecks = async () => {
+    try {
+      // Fetch published decks from Supabase
+      const { data, error } = await supabase
+        .from('decks')
+        .select('*')
+        .eq('is_published', true);
 
-    const deckCards = publicDecks.map(deck => {
-      const cards = getFlashcardsByDeck(deck.id);
-      return {
+      if (error) {
+        console.error("Error fetching public decks:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les decks publics",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Transform Supabase deck data to DeckCardProps
+      const deckCards = data.map(deck => ({
         id: deck.id,
         title: deck.title,
-        description: deck.description,
-        coverImage: deck.coverImage,
-        cardCount: cards.length,
-        tags: deck.tags,
-        author: deck.authorId === user?.id ? user?.name || "Anonyme" : "Utilisateur",
-        isPublic: deck.isPublic,
-      };
-    });
+        description: deck.description || '',
+        coverImage: deck.cover_image || undefined,
+        tags: deck.tags || [],
+        author: deck.author_name || 'Anonyme',
+        cardCount: 0, // TODO: Implement card count retrieval
+        isPublic: true
+      }));
 
-    if (JSON.stringify(deckCards) !== JSON.stringify(decks)) {
-      console.log("ExplorePage: Decks have changed, updating state");
+      // Extract unique tags
+      const tags = new Set<string>();
+      deckCards.forEach(deck => {
+        deck.tags.forEach(tag => tags.add(tag));
+      });
+      setAllTags(Array.from(tags));
+
       setDecks(deckCards);
+    } catch (error) {
+      console.error("Unexpected error loading public decks:", error);
     }
   };
 
   useEffect(() => {
     loadPublicDecks();
     
-    const initialRefreshTimeout = setTimeout(() => {
-      loadPublicDecks();
-    }, 1000);
+    // Set up periodic refresh
+    const intervalId = setInterval(loadPublicDecks, 5000);
     
-    const intervalId = setInterval(() => {
-      const allDecks = getDecks();
-      const publicDecks = allDecks.filter(deck => deck.isPublic);
-      
-      const currentDecks = decks.map(d => d.id);
-      
-      const newPublicDecks = publicDecks.filter(deck => !currentDecks.includes(deck.id));
-      
-      if (newPublicDecks.length > 0) {
-        console.log(`ExplorePage: Found ${newPublicDecks.length} new public decks, refreshing`);
-        loadPublicDecks();
-        toast({
-          title: "Nouveaux decks disponibles",
-          description: `${newPublicDecks.length} nouveau(x) deck(s) public(s) ajouté(s)`,
-        });
-      }
-      
-      const currentPublicDeckIds = publicDecks.map(d => d.id);
-      const removedDecks = decks.filter(d => !currentPublicDeckIds.includes(d.id));
-      
-      if (removedDecks.length > 0) {
-        console.log(`ExplorePage: ${removedDecks.length} decks no longer public, refreshing`);
-        loadPublicDecks();
-      }
-      
-    }, 5000);
-    
-    return () => {
-      clearTimeout(initialRefreshTimeout);
-      clearInterval(intervalId);
-    };
-  }, [decks]);
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     filterDecks();

@@ -12,38 +12,49 @@ export type Database = {
       decks: {
         Row: {
           author_id: string
+          author_name: string | null
           cover_image: string | null
           created_at: string | null
           description: string | null
           id: string
-          is_public: boolean
+          is_published: boolean | null
           tags: string[] | null
           title: string
           updated_at: string | null
         }
         Insert: {
           author_id: string
+          author_name?: string | null
           cover_image?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
-          is_public?: boolean
+          is_published?: boolean | null
           tags?: string[] | null
           title: string
           updated_at?: string | null
         }
         Update: {
           author_id?: string
+          author_name?: string | null
           cover_image?: string | null
           created_at?: string | null
           description?: string | null
           id?: string
-          is_public?: boolean
+          is_published?: boolean | null
           tags?: string[] | null
           title?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_author"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       flashcards: {
         Row: {
@@ -93,14 +104,14 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "flashcards_deck_id_fkey"
+            foreignKeyName: "fk_deck"
             columns: ["deck_id"]
             isOneToOne: false
             referencedRelation: "decks"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "flashcards_theme_id_fkey"
+            foreignKeyName: "fk_theme"
             columns: ["theme_id"]
             isOneToOne: false
             referencedRelation: "themes"
@@ -121,7 +132,7 @@ export type Database = {
           avatar?: string | null
           bio?: string | null
           created_at?: string | null
-          id: string
+          id?: string
           updated_at?: string | null
           username?: string | null
         }
@@ -132,6 +143,21 @@ export type Database = {
           id?: string
           updated_at?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      "Public deck": {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
         }
         Relationships: []
       }
@@ -165,7 +191,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "themes_deck_id_fkey"
+            foreignKeyName: "fk_deck"
             columns: ["deck_id"]
             isOneToOne: false
             referencedRelation: "decks"

@@ -1,4 +1,3 @@
-
 // Types
 export interface User {
   id: string;
@@ -46,6 +45,8 @@ export interface Deck {
   coverImage?: string;
   authorId: string;
   isPublic: boolean;
+  isPublished?: boolean;
+  publishedAt?: string;
   tags: string[];
   createdAt: string;
   updatedAt: string;
@@ -382,5 +383,114 @@ export const generateSampleData = (): void => {
   
   if (!localStorage.getItem('users')) {
     localStorage.setItem('users', JSON.stringify([]));
+  }
+};
+
+// Add a new function to publish a deck to Supabase
+export const publishDeck = async (deck: Deck): Promise<boolean> => {
+  try {
+    // Fetch the current user's profile
+    const user = getUser();
+    if (!user) {
+      console.error('No user found');
+      return false;
+    }
+
+    // Prepare deck data for Supabase
+    const supabaseDeckData = {
+      title: deck.title,
+      description: deck.description,
+      cover_image: deck.coverImage,
+      author_id: user.id,
+      author_name: user.name || 'Anonyme',
+      is_published: true,
+      tags: deck.tags,
+    };
+
+    // Insert the deck into Supabase
+    const { data, error } = await supabase
+      .from('decks')
+      .insert(supabaseDeckData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error publishing deck:', error);
+      return false;
+    }
+
+    // Update local storage to mark the deck as published
+    const decks = getDecks();
+    const updatedDecks = decks.map(localDeck => 
+      localDeck.id === deck.id 
+        ? { ...localDeck, isPublished: true, publishedAt: new Date().toISOString() } 
+        : localDeck
+    );
+    setItem(STORAGE_KEYS.DECKS, updatedDecks);
+
+    return true;
+  } catch (error) {
+    console.error('Unexpected error publishing deck:', error);
+    return false;
+  }
+};
+
+// Add a function to unpublish a deck
+export const unpublishDeck = async (deckId: string): Promise<boolean> => {
+  try {
+    // Update the deck in Supabase to set is_published to false
+    const { error } = await supabase
+      .from('decks')
+      .update({ is_published: false })
+      .eq('id', deckId);
+
+    if (error) {
+      console.error('Error unpublishing deck:', error);
+      return false;
+    }
+
+    // Update local storage to reflect unpublication
+    const decks = getDecks();
+    const updatedDecks = decks.map(localDeck => 
+      localDeck.id === deckId 
+        ? { ...localDeck, isPublished: false, publishedAt: undefined } 
+        : localDeck
+    );
+    setItem(STORAGE_KEYS.DECKS, updatedDecks);
+
+    return true;
+  } catch (error) {
+    console.error('Unexpected error unpublishing deck:', error);
+    return false;
+  }
+};
+
+// Add a function to update a published deck
+export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
+  try {
+    // Prepare updated deck data for Supabase
+    const supabaseDeckData = {
+      title: deck.title,
+      description: deck.description,
+      cover_image: deck.coverImage,
+      tags: deck.tags,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Update the deck in Supabase
+    const { error } = await supabase
+      .from('decks')
+      .update(supabaseDeckData)
+      .eq('id', deck.id);
+
+    if (error) {
+      console.error('Error updating published deck:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Unexpected error updating published deck:', error);
+    return false;
   }
 };

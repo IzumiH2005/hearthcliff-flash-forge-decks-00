@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
@@ -12,7 +11,8 @@ import {
   Minus,
   Globe,
   Lock,
-  Tags
+  Tags,
+  Share2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,8 @@ import {
   Deck
 } from "@/lib/localStorage";
 
+import { publishDeck, unpublishDeck, updatePublishedDeck } from "@/lib/localStorage";
+
 const EditDeckPage = () => {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
@@ -45,7 +47,6 @@ const EditDeckPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Deck form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [isPublic, setIsPublic] = useState(false);
@@ -53,6 +54,9 @@ const EditDeckPage = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState("");
   
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isUnpublishing, setIsUnpublishing] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     
@@ -118,7 +122,6 @@ const EditDeckPage = () => {
           description: "Les modifications ont été enregistrées avec succès",
         });
         
-        // Navigate back to deck page
         navigate(`/deck/${id}`);
       }
     } catch (error) {
@@ -200,6 +203,93 @@ const EditDeckPage = () => {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
   
+  const handlePublishDeck = async () => {
+    if (!deck) return;
+
+    setIsPublishing(true);
+    try {
+      const published = await publishDeck(deck);
+      if (published) {
+        toast({
+          title: "Deck publié",
+          description: "Votre deck est maintenant visible dans l'explorateur",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: "Impossible de publier le deck",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Publication error:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la publication",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleUnpublishDeck = async () => {
+    if (!deck) return;
+
+    setIsUnpublishing(true);
+    try {
+      const unpublished = await unpublishDeck(deck.id);
+      if (unpublished) {
+        toast({
+          title: "Deck dépublié",
+          description: "Votre deck n'est plus visible dans l'explorateur",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: "Impossible de dépublier le deck",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Unpublication error:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la dépublication",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUnpublishing(false);
+    }
+  };
+
+  const handleUpdatePublishedDeck = async () => {
+    if (!deck) return;
+
+    try {
+      const updated = await updatePublishedDeck(deck);
+      if (updated) {
+        toast({
+          title: "Deck mis à jour",
+          description: "Les modifications ont été synchronisées avec l'explorateur",
+        });
+      } else {
+        toast({
+          title: "Erreur",
+          description: "Impossible de mettre à jour le deck publié",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Update published deck error:", error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la mise à jour",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container px-4 py-8 flex items-center justify-center h-64">
@@ -235,11 +325,49 @@ const EditDeckPage = () => {
       </Link>
       
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-br from-indigo-600 to-purple-600 bg-clip-text text-transparent">Modifier le deck</h1>
-        <Button variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-          <Trash2 className="mr-2 h-4 w-4" />
-          Supprimer le deck
-        </Button>
+        <h1 className="text-3xl font-bold bg-gradient-to-br from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          Modifier le deck
+        </h1>
+        <div className="flex gap-2">
+          {!deck?.isPublished ? (
+            <Button 
+              onClick={handlePublishDeck} 
+              disabled={isPublishing}
+              className="bg-green-500 hover:bg-green-600"
+            >
+              {isPublishing ? "Publication..." : "Publier"}
+              <Globe className="ml-2 h-4 w-4" />
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleUpdatePublishedDeck}
+                variant="secondary"
+                className="bg-blue-500 text-white hover:bg-blue-600"
+              >
+                Mettre à jour
+                <Share2 className="ml-2 h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={handleUnpublishDeck} 
+                disabled={isUnpublishing}
+                variant="outline"
+                className="border-red-500 text-red-500 hover:bg-red-50"
+              >
+                {isUnpublishing ? "Dépublication..." : "Dépublier"}
+                <Lock className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
+          <Button 
+            variant="destructive" 
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Supprimer le deck
+          </Button>
+        </div>
       </div>
       
       <Card className="max-w-4xl mx-auto shadow-md border-indigo-100 dark:border-indigo-900/30">
@@ -393,7 +521,6 @@ const EditDeckPage = () => {
         </CardFooter>
       </Card>
       
-      {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
