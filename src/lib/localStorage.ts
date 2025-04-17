@@ -1,5 +1,6 @@
 // Types
 import { supabase } from "@/integrations/supabase/client";
+import { v4 as uuidv4 } from 'uuid';
 
 export interface User {
   id: string;
@@ -8,6 +9,7 @@ export interface User {
   avatar?: string;
   bio?: string;
   createdAt: string;
+  supabaseId?: string;
 }
 
 export interface Theme {
@@ -88,6 +90,9 @@ export const getUser = (): User | null => {
 };
 
 export const setUser = (user: User): void => {
+  if (!user.supabaseId) {
+    user.supabaseId = uuidv4();
+  }
   setItem(STORAGE_KEYS.USER, user);
 };
 
@@ -95,7 +100,12 @@ export const updateUser = (userData: Partial<User>): User | null => {
   const currentUser = getUser();
   if (!currentUser) return null;
   
-  const updatedUser = { ...currentUser, ...userData, updatedAt: new Date().toISOString() };
+  const updatedUser = { 
+    ...currentUser, 
+    ...userData, 
+    updatedAt: new Date().toISOString(),
+    supabaseId: userData.supabaseId || currentUser.supabaseId || uuidv4()
+  };
   setUser(updatedUser);
   return updatedUser;
 };
@@ -357,12 +367,18 @@ export const initializeDefaultUser = (): User => {
     avatar: undefined,
     bio: "Bienvenue sur CDS Flashcard-Base ! Modifiez votre profil pour personnaliser votre expérience.",
     createdAt: new Date().toISOString(),
+    supabaseId: uuidv4(),
   };
   
   const currentUser = getUser();
   if (!currentUser) {
     setUser(defaultUser);
     return defaultUser;
+  }
+  
+  if (!currentUser.supabaseId) {
+    currentUser.supabaseId = uuidv4();
+    setUser(currentUser);
   }
   
   return currentUser;
@@ -398,15 +414,25 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       return false;
     }
 
+    // Ensure user has a valid supabaseId
+    if (!user.supabaseId) {
+      user.supabaseId = uuidv4();
+      setUser(user);
+    }
+
+    console.log('Publishing deck with user supabaseId:', user.supabaseId);
+
     // Prepare deck data for Supabase
     const supabaseDeckData = {
       title: deck.title,
       description: deck.description,
       cover_image: deck.coverImage,
-      author_id: user.id,
+      author_id: user.supabaseId,
       author_name: user.name || 'Anonyme',
       is_published: true,
-      tags: deck.tags,
+      tags: deck.tags || [],
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     };
 
     // Insert the deck into Supabase
@@ -441,14 +467,14 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
 // Add a function to unpublish a deck
 export const unpublishDeck = async (deckId: string): Promise<boolean> => {
   try {
-    // Find the deck in Supabase by title (since we don't store the Supabase ID)
+    // Find the deck
     const deck = getDeck(deckId);
     if (!deck) {
       console.error('Deck not found');
       return false;
     }
     
-    // Find all decks with this title
+    // Find all decks with this title in Supabase
     const { data: supabaseDecks, error: findError } = await supabase
       .from('decks')
       .select()
@@ -491,6 +517,13 @@ export const unpublishDeck = async (deckId: string): Promise<boolean> => {
 // Add a function to update a published deck
 export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
   try {
+    // Find the user
+    const user = getUser();
+    if (!user || !user.supabaseId) {
+      console.error('No valid user found');
+      return false;
+    }
+
     // Find the deck in Supabase by title
     const { data: supabaseDecks, error: findError } = await supabase
       .from('decks')
@@ -512,7 +545,8 @@ export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
       title: deck.title,
       description: deck.description,
       cover_image: deck.coverImage,
-      tags: deck.tags,
+      author_id: user.supabaseId,
+      tags: deck.tags || [],
       updated_at: new Date().toISOString(),
     };
 
