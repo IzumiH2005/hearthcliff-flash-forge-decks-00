@@ -1,4 +1,7 @@
+
 // Types
+import { supabase } from "@/integrations/supabase/client";
+
 export interface User {
   id: string;
   name: string;
