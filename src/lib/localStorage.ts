@@ -398,13 +398,12 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       return false;
     }
 
-    // Prepare deck data for Supabase, without specifying ID to let Supabase generate it
+    // Prepare deck data for Supabase
     const supabaseDeckData = {
-      // Let Supabase generate the id
       title: deck.title,
       description: deck.description,
       cover_image: deck.coverImage,
-      // Let Supabase generate a random UUID for author_id as well
+      author_id: user.id,
       author_name: user.name || 'Anonyme',
       is_published: true,
       tags: deck.tags,
