@@ -398,16 +398,13 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       return false;
     }
 
-    // Generate a proper UUID for Supabase
-    const supabaseUuid = crypto.randomUUID();
-
-    // Prepare deck data for Supabase
+    // Prepare deck data for Supabase, without specifying ID to let Supabase generate it
     const supabaseDeckData = {
-      id: supabaseUuid, // Use a proper UUID for Supabase
+      // Let Supabase generate the id
       title: deck.title,
       description: deck.description,
       cover_image: deck.coverImage,
-      author_id: supabaseUuid, // Use the same UUID as the deck ID for author_id
+      // Let Supabase generate a random UUID for author_id as well
       author_name: user.name || 'Anonyme',
       is_published: true,
       tags: deck.tags,
@@ -434,6 +431,7 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
     );
     setItem(STORAGE_KEYS.DECKS, updatedDecks);
 
+    console.log('Successfully published deck with Supabase ID:', data?.id);
     return true;
   } catch (error) {
     console.error('Unexpected error publishing deck:', error);
