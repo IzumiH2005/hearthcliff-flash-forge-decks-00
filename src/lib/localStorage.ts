@@ -1,4 +1,3 @@
-
 // Types
 import { supabase } from "@/integrations/supabase/client";
 
@@ -399,12 +398,16 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       return false;
     }
 
+    // Generate a proper UUID for Supabase
+    const supabaseUuid = crypto.randomUUID();
+
     // Prepare deck data for Supabase
     const supabaseDeckData = {
+      id: supabaseUuid, // Use a proper UUID for Supabase
       title: deck.title,
       description: deck.description,
       cover_image: deck.coverImage,
-      author_id: user.id,
+      author_id: supabaseUuid, // Use the same UUID as the deck ID for author_id
       author_name: user.name || 'Anonyme',
       is_published: true,
       tags: deck.tags,
@@ -441,15 +444,35 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
 // Add a function to unpublish a deck
 export const unpublishDeck = async (deckId: string): Promise<boolean> => {
   try {
-    // Update the deck in Supabase to set is_published to false
-    const { error } = await supabase
-      .from('decks')
-      .update({ is_published: false })
-      .eq('id', deckId);
-
-    if (error) {
-      console.error('Error unpublishing deck:', error);
+    // Find the deck in Supabase by title (since we don't store the Supabase ID)
+    const deck = getDeck(deckId);
+    if (!deck) {
+      console.error('Deck not found');
       return false;
+    }
+    
+    // Find all decks with this title
+    const { data: supabaseDecks, error: findError } = await supabase
+      .from('decks')
+      .select()
+      .eq('title', deck.title);
+      
+    if (findError) {
+      console.error('Error finding deck to unpublish:', findError);
+      return false;
+    }
+    
+    if (supabaseDecks && supabaseDecks.length > 0) {
+      // Update all matching decks to set is_published to false
+      const { error } = await supabase
+        .from('decks')
+        .update({ is_published: false })
+        .eq('title', deck.title);
+
+      if (error) {
+        console.error('Error unpublishing deck:', error);
+        return false;
+      }
     }
 
     // Update local storage to reflect unpublication
@@ -471,6 +494,22 @@ export const unpublishDeck = async (deckId: string): Promise<boolean> => {
 // Add a function to update a published deck
 export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
   try {
+    // Find the deck in Supabase by title
+    const { data: supabaseDecks, error: findError } = await supabase
+      .from('decks')
+      .select()
+      .eq('title', deck.title);
+      
+    if (findError) {
+      console.error('Error finding deck to update:', findError);
+      return false;
+    }
+    
+    if (!supabaseDecks || supabaseDecks.length === 0) {
+      console.error('Published deck not found in Supabase');
+      return false;
+    }
+    
     // Prepare updated deck data for Supabase
     const supabaseDeckData = {
       title: deck.title,
@@ -480,11 +519,11 @@ export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
       updated_at: new Date().toISOString(),
     };
 
-    // Update the deck in Supabase
+    // Update all matching decks
     const { error } = await supabase
       .from('decks')
       .update(supabaseDeckData)
-      .eq('id', deck.id);
+      .eq('title', deck.title);
 
     if (error) {
       console.error('Error updating published deck:', error);
