@@ -56,6 +56,7 @@ const EditDeckPage = () => {
   
   const [isPublishing, setIsPublishing] = useState(false);
   const [isUnpublishing, setIsUnpublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -207,6 +208,7 @@ const EditDeckPage = () => {
     if (!deck) return;
 
     setIsPublishing(true);
+    setPublishError(null);
     try {
       const published = await publishDeck(deck);
       if (published) {
@@ -214,7 +216,13 @@ const EditDeckPage = () => {
           title: "Deck publié",
           description: "Votre deck est maintenant visible dans l'explorateur",
         });
+        
+        const updatedDeck = getDeck(id || '');
+        if (updatedDeck) {
+          setDeck(updatedDeck);
+        }
       } else {
+        setPublishError("Impossible de publier le deck. Veuillez réessayer.");
         toast({
           title: "Erreur",
           description: "Impossible de publier le deck",
@@ -223,6 +231,7 @@ const EditDeckPage = () => {
       }
     } catch (error) {
       console.error("Publication error:", error);
+      setPublishError("Une erreur technique s'est produite. Veuillez réessayer.");
       toast({
         title: "Erreur",
         description: "Une erreur s'est produite lors de la publication",
@@ -244,6 +253,11 @@ const EditDeckPage = () => {
           title: "Deck dépublié",
           description: "Votre deck n'est plus visible dans l'explorateur",
         });
+        
+        const updatedDeck = getDeck(id || '');
+        if (updatedDeck) {
+          setDeck(updatedDeck);
+        }
       } else {
         toast({
           title: "Erreur",
@@ -369,6 +383,13 @@ const EditDeckPage = () => {
           </Button>
         </div>
       </div>
+
+      {publishError && (
+        <div className="mb-6 p-4 bg-red-100 text-red-800 rounded-md border border-red-200">
+          <p className="font-semibold">Erreur de publication :</p>
+          <p>{publishError}</p>
+        </div>
+      )}
       
       <Card className="max-w-4xl mx-auto shadow-md border-indigo-100 dark:border-indigo-900/30">
         <CardHeader className="bg-gradient-to-r from-indigo-100/50 to-purple-100/50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-t-lg">

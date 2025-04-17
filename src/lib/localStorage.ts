@@ -404,6 +404,47 @@ export const generateSampleData = (): void => {
   }
 };
 
+// Function to ensure user profile exists in Supabase
+const ensureUserProfileExists = async (user: User): Promise<boolean> => {
+  if (!user.supabaseId) {
+    user.supabaseId = uuidv4();
+    setUser(user);
+  }
+
+  // Check if the profile exists in Supabase
+  const { data: existingProfile, error: fetchError } = await supabase
+    .from('profiles')
+    .select()
+    .eq('id', user.supabaseId)
+    .single();
+
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('Error checking for profile:', fetchError);
+    return false;
+  }
+
+  // If profile doesn't exist, create it
+  if (!existingProfile) {
+    const { error: insertError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.supabaseId,
+        username: user.name,
+        bio: user.bio,
+        avatar: user.avatar,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+    if (insertError) {
+      console.error('Error creating profile:', insertError);
+      return false;
+    }
+  }
+
+  return true;
+};
+
 // Add a new function to publish a deck to Supabase
 export const publishDeck = async (deck: Deck): Promise<boolean> => {
   try {
@@ -414,10 +455,11 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       return false;
     }
 
-    // Ensure user has a valid supabaseId
-    if (!user.supabaseId) {
-      user.supabaseId = uuidv4();
-      setUser(user);
+    // Ensure user has a valid supabaseId and profile exists in Supabase
+    const profileExists = await ensureUserProfileExists(user);
+    if (!profileExists) {
+      console.error('Could not ensure user profile exists');
+      return false;
     }
 
     console.log('Publishing deck with user supabaseId:', user.supabaseId);
@@ -435,7 +477,7 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       updated_at: new Date().toISOString(),
     };
 
-    // Insert the deck into Supabase
+    // Insert the deck into Supabase without specifying an ID
     const { data, error } = await supabase
       .from('decks')
       .insert(supabaseDeckData)
@@ -474,11 +516,21 @@ export const unpublishDeck = async (deckId: string): Promise<boolean> => {
       return false;
     }
     
+    // Ensure user profile exists
+    const user = getUser();
+    if (!user) {
+      console.error('No user found');
+      return false;
+    }
+    
+    await ensureUserProfileExists(user);
+    
     // Find all decks with this title in Supabase
     const { data: supabaseDecks, error: findError } = await supabase
       .from('decks')
       .select()
-      .eq('title', deck.title);
+      .eq('title', deck.title)
+      .eq('author_id', user.supabaseId);
       
     if (findError) {
       console.error('Error finding deck to unpublish:', findError);
@@ -490,7 +542,8 @@ export const unpublishDeck = async (deckId: string): Promise<boolean> => {
       const { error } = await supabase
         .from('decks')
         .update({ is_published: false })
-        .eq('title', deck.title);
+        .eq('title', deck.title)
+        .eq('author_id', user.supabaseId);
 
       if (error) {
         console.error('Error unpublishing deck:', error);
@@ -524,11 +577,15 @@ export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
       return false;
     }
 
+    // Ensure user profile exists
+    await ensureUserProfileExists(user);
+
     // Find the deck in Supabase by title
     const { data: supabaseDecks, error: findError } = await supabase
       .from('decks')
       .select()
-      .eq('title', deck.title);
+      .eq('title', deck.title)
+      .eq('author_id', user.supabaseId);
       
     if (findError) {
       console.error('Error finding deck to update:', findError);
@@ -545,7 +602,6 @@ export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
       title: deck.title,
       description: deck.description,
       cover_image: deck.coverImage,
-      author_id: user.supabaseId,
       tags: deck.tags || [],
       updated_at: new Date().toISOString(),
     };
@@ -554,7 +610,8 @@ export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
     const { error } = await supabase
       .from('decks')
       .update(supabaseDeckData)
-      .eq('title', deck.title);
+      .eq('title', deck.title)
+      .eq('author_id', user.supabaseId);
 
     if (error) {
       console.error('Error updating published deck:', error);
