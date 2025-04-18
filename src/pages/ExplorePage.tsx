@@ -19,6 +19,7 @@ const ExplorePage = () => {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("all");
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [selectedDeckId, setSelectedDeckId] = useState<string | undefined>(undefined);
   const { toast } = useToast();
   
   const loadPublicDecks = async () => {
@@ -82,7 +83,9 @@ const ExplorePage = () => {
       // Extract unique tags
       const tags = new Set<string>();
       deckCards.forEach(deck => {
-        deck.tags.forEach(tag => tags.add(tag));
+        if (deck.tags) {
+          deck.tags.forEach(tag => tags.add(tag));
+        }
       });
       setAllTags(Array.from(tags));
 
@@ -114,13 +117,13 @@ const ExplorePage = () => {
         deck => 
           deck.title.toLowerCase().includes(term) || 
           deck.description.toLowerCase().includes(term) ||
-          deck.tags.some(tag => tag.toLowerCase().includes(term))
+          deck.tags?.some(tag => tag.toLowerCase().includes(term))
       );
     }
 
     if (activeFilters.length > 0) {
       result = result.filter(deck => 
-        activeFilters.some(filter => deck.tags.includes(filter))
+        activeFilters.some(filter => deck.tags?.includes(filter))
       );
     }
 
@@ -144,6 +147,11 @@ const ExplorePage = () => {
     setActiveTab(value);
   };
 
+  const openShareDialogForExport = () => {
+    setSelectedDeckId(undefined); // Pas de deck spécifique, utilisez la liste
+    setIsShareDialogOpen(true);
+  };
+
   return (
     <div className="container px-4 py-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
@@ -155,12 +163,12 @@ const ExplorePage = () => {
         </div>
         <div className="flex gap-2 self-start md:self-auto">
           <Button
-            onClick={() => setIsShareDialogOpen(true)}
+            onClick={openShareDialogForExport}
             variant="outline"
             className="flex items-center gap-2"
           >
             <FileUp className="h-4 w-4" />
-            Importer un deck
+            Partager/Importer un deck
           </Button>
           <Button
             onClick={loadPublicDecks}
@@ -287,7 +295,7 @@ const ExplorePage = () => {
               </p>
               <Button 
                 variant="default"
-                onClick={() => setIsShareDialogOpen(true)}
+                onClick={openShareDialogForExport}
                 className="mt-4"
               >
                 <FileUp className="mr-2 h-4 w-4" />
@@ -301,6 +309,7 @@ const ExplorePage = () => {
       <ShareDeckDialog 
         isOpen={isShareDialogOpen}
         onClose={() => setIsShareDialogOpen(false)}
+        deckId={selectedDeckId}
       />
     </div>
   );

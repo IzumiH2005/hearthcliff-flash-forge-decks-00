@@ -1,20 +1,18 @@
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Eye, BookOpen, Share2, Download } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useState } from "react";
-import ShareDeckDialog from "./ShareDeckDialog";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
 
 export interface DeckCardProps {
   id: string;
   title: string;
   description: string;
-  cardCount: number;
   coverImage?: string;
   tags: string[];
   author: string;
-  isPublic?: boolean;
+  cardCount: number;
+  isPublic: boolean;
   isShared?: boolean;
 }
 
@@ -22,110 +20,75 @@ const DeckCard = ({
   id,
   title,
   description,
-  cardCount,
   coverImage,
   tags,
   author,
-  isPublic = true,
-  isShared = false,
+  cardCount,
+  isPublic,
+  isShared
 }: DeckCardProps) => {
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-
   return (
-    <>
-      <Link to={`/deck/${id}`}>
-        <Card className="deck-card h-full overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-          {coverImage ? (
-            <div className="relative h-40 w-full overflow-hidden">
-              <img
-                src={coverImage}
-                alt={title}
-                className="h-full w-full object-cover transition-transform duration-300 hover:scale-105"
-              />
-              <div className="deck-card-overlay" />
-              <div className="absolute bottom-2 left-2 flex gap-2">
-                {isPublic ? (
-                  <Badge variant="secondary" className="bg-green-500/20 text-green-700 dark:bg-green-500/30 dark:text-green-300">
-                    Public
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary" className="bg-slate-500/20 text-slate-700 dark:bg-slate-500/30 dark:text-slate-300">
-                    Privé
-                  </Badge>
-                )}
-                {isShared && (
-                  <Badge variant="secondary" className="bg-blue-500/20 text-blue-700 dark:bg-blue-500/30 dark:text-blue-300">
-                    Partagé
-                  </Badge>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="h-40 w-full bg-gradient-to-r from-primary/30 to-accent/30 flex items-center justify-center">
-              <BookOpen className="h-16 w-16 text-primary/50" />
-            </div>
-          )}
-          <CardHeader className="p-4">
-            <CardTitle className="line-clamp-1">{title}</CardTitle>
-            <CardDescription className="flex items-center text-xs">
-              Par {author}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 pt-0">
-            <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
-            <div className="mt-4 flex flex-wrap gap-1">
-              {tags.slice(0, 3).map((tag) => (
-                <Badge key={tag} variant="outline" className="text-xs">
-                  {tag}
-                </Badge>
-              ))}
-              {tags.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{tags.length - 3}
-                </Badge>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between p-4 pt-0">
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <BookOpen className="h-3 w-3" />
-              <span>{cardCount} cartes</span>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // Implement study action
-                  console.log(`Study ${id}`);
-                }}
-                className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700"
-              >
-                <Eye className="h-3 w-3" />
-                <span>Étudier</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsShareDialogOpen(true);
-                }}
-                className="flex items-center gap-1 text-xs text-green-500 hover:text-green-700"
-              >
-                <Share2 className="h-3 w-3" />
-                <span>Partager</span>
-              </button>
-            </div>
-          </CardFooter>
-        </Card>
-      </Link>
+    <Card className="overflow-hidden flex flex-col h-full">
+      <div className="aspect-video relative">
+        {coverImage ? (
+          <img 
+            src={coverImage} 
+            alt={title} 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-secondary flex items-center justify-center">
+            <span className="text-3xl">📚</span>
+          </div>
+        )}
+        
+        {isPublic && (
+          <div className="absolute top-2 right-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded-full">
+            Public
+          </div>
+        )}
+        
+        {isShared && (
+          <div className="absolute top-2 left-2 bg-blue-500/90 text-white text-xs px-2 py-1 rounded-full">
+            Importé
+          </div>
+        )}
+      </div>
       
-      <ShareDeckDialog
-        deckId={id}
-        isOpen={isShareDialogOpen}
-        onClose={() => setIsShareDialogOpen(false)}
-      />
-    </>
+      <CardContent className="flex-grow pt-4">
+        <h3 className="text-xl font-bold mb-1">{title}</h3>
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+          {description || "Pas de description"}
+        </p>
+        
+        {tags && tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {tags.map((tag, index) => (
+              <span
+                key={index}
+                className="text-xs bg-secondary text-secondary-foreground px-2 py-1 rounded-full"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+        
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>{author}</span>
+          <span>{cardCount} carte{cardCount !== 1 ? "s" : ""}</span>
+        </div>
+      </CardContent>
+      
+      <CardFooter>
+        <Button asChild variant="default" className="w-full">
+          <Link to={`/deck/${id}`}>
+            Explorer
+            <ExternalLink className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
 
