@@ -1,92 +1,240 @@
-import { useEffect } from "react"
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
-import { ThemeProvider } from "@/components/ui/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
-import { initializeDefaultUser, generateSampleData } from "@/lib/localStorage"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { generateSampleData } from "./lib/localStorage";
+import { hasSession } from "./lib/sessionManager";
 
-// Layout Components
-import Navbar from "@/components/Navbar"
-import Footer from "@/components/Footer"
+// Components
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 // Pages
-import Index from "@/pages/Index"
-import DeckPage from "@/pages/DeckPage"
-import ThemePage from "@/pages/ThemePage"
-import CreatePage from "@/pages/CreatePage"
-import NotFound from "@/pages/NotFound"
-import HomePage from "@/pages/HomePage"
-import MyDecksPage from "@/pages/MyDecksPage"
-import StudyPage from "@/pages/StudyPage"
-import ProfilePage from "@/pages/ProfilePage"
-import LoginPage from "@/pages/LoginPage"
-import EditDeckPage from "@/pages/EditDeckPage"
-import LearningMethodsPage from "@/pages/LearningMethodsPage"
-import StatsPage from "@/pages/StatsPage"
-import ImportPage from "@/pages/ImportPage"
-import ExplorePage from "@/pages/ExplorePage"
-import SharePage from "@/pages/SharePage"
+import HomePage from "@/pages/HomePage";
+import ExplorePage from "@/pages/ExplorePage";
+import CreatePage from "@/pages/CreatePage";
+import ProfilePage from "@/pages/ProfilePage";
+import DeckPage from "@/pages/DeckPage";
+import EditDeckPage from "@/pages/EditDeckPage";
+import ThemePage from "@/pages/ThemePage";
+import StudyPage from "@/pages/StudyPage";
+import NotFound from "@/pages/NotFound";
+import ImportPage from "@/pages/ImportPage";
+import LoginPage from "@/pages/LoginPage";
+import Index from "@/pages/Index";
+import LearningMethodsPage from "@/pages/LearningMethodsPage";
+import StatsPage from "@/pages/StatsPage";
+import SharePage from "@/pages/SharePage";
+import MyDecksPage from "@/pages/MyDecksPage";
 
-import "./App.css"
+const queryClient = new QueryClient();
 
-// Create a client for React Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1
-    },
-  },
-})
+// Protected route wrapper component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  if (!hasSession()) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+};
 
-function App() {
+const App = () => {
   useEffect(() => {
-    // Initialize session and session manager - removed invalid import
-    
-    // Create default user if none exists
-    initializeDefaultUser()
-    
-    // Generate sample data if needed
-    generateSampleData()
-  }, [])
+    // Initialize storage structure on first load
+    generateSampleData();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system" storageKey="flashcard-theme">
-        <Router>
-          <div className="flex flex-col min-h-screen">
-            <Navbar />
-            
-            <main className="flex-1">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/home" element={<HomePage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/decks" element={<MyDecksPage />} />
-                <Route path="/deck/:id" element={<DeckPage />} />
-                <Route path="/deck/:id/edit" element={<EditDeckPage />} />
-                <Route path="/deck/:deckId/theme/:themeId" element={<ThemePage />} />
-                <Route path="/deck/:id/study" element={<StudyPage />} />
-                <Route path="/create" element={<CreatePage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/methods" element={<LearningMethodsPage />} />
-                <Route path="/stats" element={<StatsPage />} />
-                <Route path="/import" element={<ImportPage />} />
-                <Route path="/import/:code" element={<ImportPage />} />
-                <Route path="/explore" element={<ExplorePage />} />
-                <Route path="/share" element={<SharePage />} />
-                <Route path="/404" element={<NotFound />} />
-                <Route path="*" element={<Navigate to="/404" replace />} />
-              </Routes>
-            </main>
-            
-            <Footer />
-          </div>
-        </Router>
+      <TooltipProvider>
         <Toaster />
-      </ThemeProvider>
+        <Sonner />
+        <BrowserRouter>
+          <div className="min-h-screen flex flex-col bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/20 dark:to-purple-950/20">
+            <Routes>
+              {/* Public routes without Navbar/Footer */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<Index />} />
+              
+              {/* Protected routes with Navbar and Footer */}
+              <Route path="/home" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <HomePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/explore" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ExplorePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/create" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <CreatePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ProfilePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:id" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <DeckPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:id/edit" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <EditDeckPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:deckId/theme/:themeId" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ThemePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/deck/:id/study" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <StudyPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/import/:code" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ImportPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/import" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <ImportPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              {/* New routes */}
+              <Route path="/learning-methods" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <LearningMethodsPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/stats" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <StatsPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/share" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <SharePage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="/my-decks" element={
+                <ProtectedRoute>
+                  <>
+                    <Navbar />
+                    <main className="flex-1">
+                      <MyDecksPage />
+                    </main>
+                    <Footer />
+                  </>
+                </ProtectedRoute>
+              } />
+              
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </TooltipProvider>
     </QueryClientProvider>
-  )
-}
+  );
+};
 
-export default App
+export default App;
