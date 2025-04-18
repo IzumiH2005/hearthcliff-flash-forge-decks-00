@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { SearchIcon, Filter, X } from "lucide-react";
+import { SearchIcon, Filter, X, Download, Share2 } from "lucide-react";
 import DeckCard, { DeckCardProps } from "@/components/DeckCard";
 import { getDecks, getFlashcardsByDeck, Deck, getUser } from "@/lib/localStorage";
 import { useToast } from "@/hooks/use-toast";
@@ -117,13 +119,24 @@ const ExplorePage = () => {
             Découvrez et importez des decks de flashcards créés par la communauté
           </p>
         </div>
-        <Button
-          onClick={loadPublicDecks}
-          variant="outline"
-          className="self-start md:self-auto"
-        >
-          Actualiser
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={loadPublicDecks}
+            variant="outline"
+            className="self-start md:self-auto"
+          >
+            Actualiser
+          </Button>
+          <Button
+            asChild
+            className="self-start md:self-auto bg-indigo-600 hover:bg-indigo-700"
+          >
+            <Link to="/share">
+              <Share2 className="mr-2 h-4 w-4" />
+              Partager/Importer
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -225,6 +238,30 @@ const ExplorePage = () => {
           </div>
         </TabsContent>
       </Tabs>
+      
+      <div className="mt-12 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-xl p-6 shadow-sm">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold mb-2">Partagez vos decks</h2>
+          <p className="text-muted-foreground">
+            Créez, partagez et importez facilement vos decks de flashcards
+          </p>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button asChild className="bg-indigo-600 hover:bg-indigo-700">
+            <Link to="/share">
+              <Share2 className="mr-2 h-4 w-4" />
+              Partager un deck
+            </Link>
+          </Button>
+          <Button asChild className="bg-indigo-600 hover:bg-indigo-700">
+            <Link to="/share?tab=import-deck">
+              <Download className="mr-2 h-4 w-4" />
+              Importer un deck partagé
+            </Link>
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

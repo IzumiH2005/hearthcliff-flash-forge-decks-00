@@ -348,6 +348,164 @@ export const getSharedDeck = (code: string): Deck | undefined => {
   return getDeck(sharedCode.deckId);
 };
 
+// Deck sharing and import functions
+export interface SharedDeckData {
+  id: string;
+  title: string;
+  description: string;
+  coverImage?: string;
+  tags: string[];
+  themes: Theme[];
+  flashcards: Flashcard[];
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const prepareDeckForSharing = (deckId: string): SharedDeckData | null => {
+  const deck = getDeck(deckId);
+  if (!deck) return null;
+
+  const themes = getThemesByDeck(deckId);
+  const flashcards = getFlashcardsByDeck(deckId);
+  
+  const sharedData: SharedDeckData = {
+    id: deck.id,
+    title: deck.title,
+    description: deck.description,
+    coverImage: deck.coverImage,
+    tags: deck.tags || [],
+    themes,
+    flashcards,
+    version: 1,
+    createdAt: deck.createdAt,
+    updatedAt: deck.updatedAt
+  };
+  
+  return sharedData;
+};
+
+export const importSharedDeck = (sharedData: SharedDeckData): Deck | null => {
+  try {
+    const user = getUser();
+    if (!user) return null;
+    
+    // Check if this deck already exists based on ID
+    const existingDecks = getDecks();
+    const existingDeck = existingDecks.find(d => d.id === sharedData.id);
+    
+    if (existingDeck) {
+      // This is an existing deck, user should use updateSharedDeck instead
+      return null;
+    }
+    
+    const now = new Date().toISOString();
+    
+    // Create new deck with same ID to preserve relationships
+    const newDeck: Deck = {
+      id: sharedData.id,
+      title: sharedData.title,
+      description: sharedData.description,
+      coverImage: sharedData.coverImage,
+      authorId: user.id,
+      isPublic: false,
+      tags: sharedData.tags || [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    // Save deck
+    setItem(STORAGE_KEYS.DECKS, [...existingDecks, newDeck]);
+    
+    // Import themes
+    const existingThemes = getThemes();
+    const newThemes = sharedData.themes.map(theme => ({
+      ...theme,
+      updatedAt: now
+    }));
+    
+    setItem(STORAGE_KEYS.THEMES, [...existingThemes, ...newThemes]);
+    
+    // Import flashcards
+    const existingFlashcards = getFlashcards();
+    const newFlashcards = sharedData.flashcards.map(card => ({
+      ...card,
+      updatedAt: now
+    }));
+    
+    setItem(STORAGE_KEYS.FLASHCARDS, [...existingFlashcards, ...newFlashcards]);
+    
+    return newDeck;
+  } catch (error) {
+    console.error("Error importing shared deck:", error);
+    return null;
+  }
+};
+
+export const updateSharedDeck = (sharedData: SharedDeckData): Deck | null => {
+  try {
+    const existingDeck = getDeck(sharedData.id);
+    if (!existingDeck) {
+      // Deck doesn't exist, use importSharedDeck instead
+      return null;
+    }
+    
+    const user = getUser();
+    if (!user || existingDeck.authorId !== user.id) {
+      // Current user is not the author
+      return null;
+    }
+    
+    const now = new Date().toISOString();
+    
+    // Update deck
+    const updatedDeck = updateDeck(sharedData.id, {
+      title: sharedData.title,
+      description: sharedData.description,
+      coverImage: sharedData.coverImage,
+      tags: sharedData.tags,
+      updatedAt: now
+    });
+    
+    // Get existing themes and flashcards
+    const existingThemes = getThemesByDeck(sharedData.id);
+    const existingFlashcards = getFlashcardsByDeck(sharedData.id);
+    
+    // Delete existing themes
+    existingThemes.forEach(theme => {
+      deleteTheme(theme.id);
+    });
+    
+    // Delete existing flashcards
+    existingFlashcards.forEach(card => {
+      deleteFlashcard(card.id);
+    });
+    
+    // Add imported themes
+    const allThemes = getThemes();
+    const newThemes = sharedData.themes.map(theme => ({
+      ...theme,
+      updatedAt: now
+    }));
+    
+    setItem(STORAGE_KEYS.THEMES, [...allThemes, ...newThemes]);
+    
+    // Add imported flashcards
+    const allFlashcards = getFlashcards();
+    const newFlashcards = sharedData.flashcards.map(card => ({
+      ...card,
+      updatedAt: now
+    }));
+    
+    setItem(STORAGE_KEYS.FLASHCARDS, [...allFlashcards, ...newFlashcards]);
+    
+    return updatedDeck;
+  } catch (error) {
+    console.error("Error updating shared deck:", error);
+    return null;
+  }
+};
+
 // Image/Audio Utils
 export const getBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -420,6 +578,11 @@ const ensureUserProfileExists = async (user: User): Promise<string | null> => {
       .eq('id', user.supabaseId)
       .single();
 
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching profile:', fetchError);
+      return null;
+    }
+
     // If profile doesn't exist, create it
     if (!existingProfile) {
       const { error } = await supabase
@@ -448,7 +611,7 @@ const ensureUserProfileExists = async (user: User): Promise<string | null> => {
   }
 };
 
-// Update publishDeck to use the new ensureUserProfileExists approach
+// Fix the publishDeck function to properly handle errors and RLS
 export const publishDeck = async (deck: Deck): Promise<boolean> => {
   try {
     const user = getUser();
@@ -464,7 +627,9 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       return false;
     }
 
+    // Prepare the deck data for Supabase
     const supabaseDeckData = {
+      id: uuidv4(), // Generate a new UUID for the Supabase deck
       title: deck.title,
       description: deck.description || '',
       cover_image: deck.coverImage,
@@ -476,7 +641,12 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       updated_at: new Date().toISOString(),
     };
 
-    // Insert deck directly in Supabase
+    // Insert deck directly in Supabase with detailed debugging
+    console.log('Attempting to insert deck with data:', {
+      ...supabaseDeckData,
+      author_id: `${supabaseId.substring(0, 8)}...` // Log partial ID for privacy
+    });
+    
     const { data, error } = await supabase
       .from('decks')
       .insert(supabaseDeckData)
@@ -487,6 +657,8 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       console.error('Error publishing deck:', error);
       return false;
     }
+
+    console.log('Deck published successfully:', data);
 
     // Update local storage
     const decks = getDecks();
