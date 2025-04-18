@@ -422,7 +422,7 @@ const ensureUserProfileExists = async (user: User): Promise<string | null> => {
 
     // If profile doesn't exist, create it
     if (!existingProfile) {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.supabaseId,
@@ -432,8 +432,7 @@ const ensureUserProfileExists = async (user: User): Promise<string | null> => {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }, { 
-          onConflict: 'id',
-          returning: 'minimal'
+          onConflict: 'id'
         });
 
       if (error) {
