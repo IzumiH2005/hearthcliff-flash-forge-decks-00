@@ -1,13 +1,15 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { SearchIcon, Filter, X } from "lucide-react";
+import { SearchIcon, Filter, X, FileUp } from "lucide-react";
 import DeckCard, { DeckCardProps } from "@/components/DeckCard";
-import { getDecks, getFlashcardsByDeck, Deck, getUser } from "@/lib/localStorage";
+import { getDecks, getFlashcardsByDeck, Deck, getUser, getSharedImportedDecks } from "@/lib/localStorage";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import ShareDeckDialog from "@/components/ShareDeckDialog";
 
 const ExplorePage = () => {
   const [decks, setDecks] = useState<DeckCardProps[]>([]);
@@ -15,8 +17,10 @@ const ExplorePage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [allTags, setAllTags] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("all");
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const { toast } = useToast();
-
+  
   const loadPublicDecks = async () => {
     try {
       // Fetch published decks from Supabase
@@ -47,6 +51,34 @@ const ExplorePage = () => {
         isPublic: true
       }));
 
+      // Si on est dans l'onglet "shared", ajouter les decks partagés importés
+      if (activeTab === "shared") {
+        const sharedDecks = getSharedImportedDecks();
+        const localDecks = getDecks();
+        
+        const importedDeckCards = sharedDecks
+          .map(shared => {
+            const deck = localDecks.find(d => d.id === shared.localDeckId);
+            if (!deck) return null;
+            
+            return {
+              id: deck.id,
+              title: deck.title,
+              description: deck.description,
+              coverImage: deck.coverImage,
+              tags: deck.tags,
+              author: "Importé",
+              cardCount: getFlashcardsByDeck(deck.id).length,
+              isPublic: deck.isPublic,
+              isShared: true
+            };
+          })
+          .filter(Boolean) as DeckCardProps[];
+        
+        // Combiner avec les decks publics
+        deckCards.push(...importedDeckCards);
+      }
+
       // Extract unique tags
       const tags = new Set<string>();
       deckCards.forEach(deck => {
@@ -67,7 +99,7 @@ const ExplorePage = () => {
     const intervalId = setInterval(loadPublicDecks, 5000);
     
     return () => clearInterval(intervalId);
-  }, []);
+  }, [activeTab]);
 
   useEffect(() => {
     filterDecks();
@@ -108,6 +140,10 @@ const ExplorePage = () => {
     setActiveFilters([]);
   };
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
   return (
     <div className="container px-4 py-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
@@ -117,13 +153,22 @@ const ExplorePage = () => {
             Découvrez et importez des decks de flashcards créés par la communauté
           </p>
         </div>
-        <Button
-          onClick={loadPublicDecks}
-          variant="outline"
-          className="self-start md:self-auto"
-        >
-          Actualiser
-        </Button>
+        <div className="flex gap-2 self-start md:self-auto">
+          <Button
+            onClick={() => setIsShareDialogOpen(true)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <FileUp className="h-4 w-4" />
+            Importer un deck
+          </Button>
+          <Button
+            onClick={loadPublicDecks}
+            variant="outline"
+          >
+            Actualiser
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -174,11 +219,12 @@ const ExplorePage = () => {
         ))}
       </div>
 
-      <Tabs defaultValue="all" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="all">Tous</TabsTrigger>
           <TabsTrigger value="recent">Récents</TabsTrigger>
           <TabsTrigger value="popular">Populaires</TabsTrigger>
+          <TabsTrigger value="shared">Partagés</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-0">
@@ -224,7 +270,38 @@ const ExplorePage = () => {
               ))}
           </div>
         </TabsContent>
+        
+        <TabsContent value="shared" className="mt-0">
+          {filteredDecks.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredDecks
+                .filter(deck => (deck as any).isShared)
+                .map((deck) => (
+                  <DeckCard key={deck.id} {...deck} />
+                ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-lg text-muted-foreground">
+                Aucun deck partagé trouvé
+              </p>
+              <Button 
+                variant="default"
+                onClick={() => setIsShareDialogOpen(true)}
+                className="mt-4"
+              >
+                <FileUp className="mr-2 h-4 w-4" />
+                Importer un deck
+              </Button>
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+      
+      <ShareDeckDialog 
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
+      />
     </div>
   );
 };

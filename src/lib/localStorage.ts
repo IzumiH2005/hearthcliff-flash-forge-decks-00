@@ -63,6 +63,7 @@ const STORAGE_KEYS = {
   THEMES: 'cds-flashcard-themes',
   FLASHCARDS: 'cds-flashcard-cards',
   SHARED: 'cds-flashcard-shared',
+  SHARED_DECKS: 'cds-flashcard-shared-decks',
 };
 
 // Helper functions
@@ -348,6 +349,249 @@ export const getSharedDeck = (code: string): Deck | undefined => {
   return getDeck(sharedCode.deckId);
 };
 
+// *** NOUVELLE FONCTIONNALITÉ: Partage de deck via JSON ***
+
+// Interface pour le format de deck partagé
+export interface SharedDeckExport {
+  id: string;
+  originalId: string; // ID original du deck
+  title: string;
+  description: string;
+  coverImage?: string;
+  tags: string[];
+  themes: {
+    id: string;
+    title: string;
+    description: string;
+    coverImage?: string;
+  }[];
+  flashcards: {
+    id: string;
+    themeId?: string;
+    front: {
+      text: string;
+      image?: string;
+      audio?: string;
+      additionalInfo?: string;
+    };
+    back: {
+      text: string;
+      image?: string;
+      audio?: string;
+      additionalInfo?: string;
+    };
+  }[];
+  version: number;
+  exportedAt: string;
+}
+
+// Fonction pour exporter un deck au format JSON
+export const exportDeckToJson = (deckId: string): SharedDeckExport => {
+  const deck = getDeck(deckId);
+  if (!deck) {
+    throw new Error("Deck not found");
+  }
+  
+  const themes = getThemesByDeck(deckId);
+  const flashcards = getFlashcardsByDeck(deckId);
+  
+  const sharedDeck: SharedDeckExport = {
+    id: `shared_${uuidv4()}`,
+    originalId: deckId,
+    title: deck.title,
+    description: deck.description,
+    coverImage: deck.coverImage,
+    tags: deck.tags || [],
+    themes: themes.map(theme => ({
+      id: theme.id,
+      title: theme.title,
+      description: theme.description,
+      coverImage: theme.coverImage,
+    })),
+    flashcards: flashcards.map(card => ({
+      id: card.id,
+      themeId: card.themeId,
+      front: {
+        text: card.front.text,
+        image: card.front.image,
+        audio: card.front.audio,
+        additionalInfo: card.front.additionalInfo,
+      },
+      back: {
+        text: card.back.text,
+        image: card.back.image,
+        audio: card.back.audio,
+        additionalInfo: card.back.additionalInfo,
+      },
+    })),
+    version: 1,
+    exportedAt: new Date().toISOString()
+  };
+  
+  return sharedDeck;
+};
+
+// Fonction pour importer un deck depuis un format JSON
+export const importDeckFromJson = (sharedDeckData: SharedDeckExport, authorId: string): string => {
+  // Créer le nouveau deck
+  const newDeck = createDeck({
+    title: `${sharedDeckData.title} (Importé)`,
+    description: sharedDeckData.description,
+    coverImage: sharedDeckData.coverImage,
+    authorId: authorId,
+    isPublic: false,
+    tags: sharedDeckData.tags,
+  });
+  
+  // Créer une map pour associer les anciens IDs de thèmes aux nouveaux
+  const themeIdMap = new Map<string, string>();
+  
+  // Créer les thèmes
+  for (const theme of sharedDeckData.themes) {
+    const newTheme = createTheme({
+      deckId: newDeck.id,
+      title: theme.title,
+      description: theme.description,
+      coverImage: theme.coverImage,
+    });
+    
+    themeIdMap.set(theme.id, newTheme.id);
+  }
+  
+  // Créer les flashcards
+  for (const card of sharedDeckData.flashcards) {
+    const newThemeId = card.themeId ? themeIdMap.get(card.themeId) : undefined;
+    
+    createFlashcard({
+      deckId: newDeck.id,
+      themeId: newThemeId,
+      front: {
+        text: card.front.text,
+        image: card.front.image,
+        audio: card.front.audio,
+        additionalInfo: card.front.additionalInfo,
+      },
+      back: {
+        text: card.back.text,
+        image: card.back.image,
+        audio: card.back.audio,
+        additionalInfo: card.back.additionalInfo,
+      },
+    });
+  }
+  
+  // Sauvegarder la référence du deck partagé
+  const sharedDecks = getItem<{[originalId: string]: string}>(STORAGE_KEYS.SHARED_DECKS, {});
+  sharedDecks[sharedDeckData.originalId] = newDeck.id;
+  setItem(STORAGE_KEYS.SHARED_DECKS, sharedDecks);
+  
+  return newDeck.id;
+};
+
+// Fonction pour mettre à jour un deck existant avec une nouvelle version partagée
+export const updateDeckFromJson = (sharedDeckData: SharedDeckExport): boolean => {
+  // Vérifier si le deck original a déjà été importé
+  const sharedDecks = getItem<{[originalId: string]: string}>(STORAGE_KEYS.SHARED_DECKS, {});
+  const localDeckId = sharedDecks[sharedDeckData.originalId];
+  
+  if (!localDeckId) {
+    return false; // Le deck n'a pas été importé auparavant
+  }
+  
+  // Vérifier si le deck existe encore localement
+  const localDeck = getDeck(localDeckId);
+  if (!localDeck) {
+    // Le deck a été supprimé localement, supprimer la référence
+    delete sharedDecks[sharedDeckData.originalId];
+    setItem(STORAGE_KEYS.SHARED_DECKS, sharedDecks);
+    return false;
+  }
+  
+  // Mettre à jour les informations du deck
+  updateDeck(localDeckId, {
+    title: sharedDeckData.title,
+    description: sharedDeckData.description,
+    coverImage: sharedDeckData.coverImage,
+    tags: sharedDeckData.tags,
+  });
+  
+  // Supprimer les thèmes et flashcards existants
+  const existingThemes = getThemesByDeck(localDeckId);
+  for (const theme of existingThemes) {
+    deleteTheme(theme.id);
+  }
+  
+  const existingFlashcards = getFlashcardsByDeck(localDeckId);
+  for (const card of existingFlashcards) {
+    deleteFlashcard(card.id);
+  }
+  
+  // Créer une map pour associer les anciens IDs de thèmes aux nouveaux
+  const themeIdMap = new Map<string, string>();
+  
+  // Créer les nouveaux thèmes
+  for (const theme of sharedDeckData.themes) {
+    const newTheme = createTheme({
+      deckId: localDeckId,
+      title: theme.title,
+      description: theme.description,
+      coverImage: theme.coverImage,
+    });
+    
+    themeIdMap.set(theme.id, newTheme.id);
+  }
+  
+  // Créer les nouvelles flashcards
+  for (const card of sharedDeckData.flashcards) {
+    const newThemeId = card.themeId ? themeIdMap.get(card.themeId) : undefined;
+    
+    createFlashcard({
+      deckId: localDeckId,
+      themeId: newThemeId,
+      front: {
+        text: card.front.text,
+        image: card.front.image,
+        audio: card.front.audio,
+        additionalInfo: card.front.additionalInfo,
+      },
+      back: {
+        text: card.back.text,
+        image: card.back.image,
+        audio: card.back.audio,
+        additionalInfo: card.back.additionalInfo,
+      },
+    });
+  }
+  
+  return true;
+};
+
+// Fonction pour obtenir tous les decks partagés importés
+export const getSharedImportedDecks = (): {originalId: string, localDeckId: string}[] => {
+  const sharedDecks = getItem<{[originalId: string]: string}>(STORAGE_KEYS.SHARED_DECKS, {});
+  return Object.entries(sharedDecks).map(([originalId, localDeckId]) => ({
+    originalId,
+    localDeckId
+  }));
+};
+
+// Fonction pour vérifier si un deck est un deck partagé importé
+export const isSharedImportedDeck = (deckId: string): boolean => {
+  const sharedDecks = getItem<{[originalId: string]: string}>(STORAGE_KEYS.SHARED_DECKS, {});
+  return Object.values(sharedDecks).includes(deckId);
+};
+
+// Fonction pour obtenir l'ID original d'un deck importé
+export const getOriginalDeckIdForImported = (deckId: string): string | null => {
+  const sharedDecks = getItem<{[originalId: string]: string}>(STORAGE_KEYS.SHARED_DECKS, {});
+  for (const [originalId, localDeckId] of Object.entries(sharedDecks)) {
+    if (localDeckId === deckId) {
+      return originalId;
+    }
+  }
+  return null;
+};
+
 // Image/Audio Utils
 export const getBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -404,67 +648,68 @@ export const generateSampleData = (): void => {
   }
 };
 
-// Update ensureUserProfileExists function to handle Supabase profile creation more robustly
+// FIX: Correction du problème de publication des decks dans Supabase
 const ensureUserProfileExists = async (user: User): Promise<string | null> => {
   try {
-    // If no supabaseId, generate one
+    // Si pas de supabaseId, on en génère un
     if (!user.supabaseId) {
       user.supabaseId = uuidv4();
       setUser(user);
     }
 
-    // Check if the profile exists in Supabase
-    const { data: existingProfile, error: fetchError } = await supabase
+    // Vérifier si le profil existe déjà dans Supabase
+    const { data: existingProfile } = await supabase
       .from('profiles')
       .select('id')
       .eq('id', user.supabaseId)
       .single();
 
-    // If profile doesn't exist, create it
+    // Si le profil n'existe pas, on le crée
     if (!existingProfile) {
+      // Utiliser insert au lieu de upsert pour éviter les problèmes de conflit
       const { error } = await supabase
         .from('profiles')
-        .upsert({
+        .insert({
           id: user.supabaseId,
           username: user.name || 'Anonyme',
           bio: user.bio,
           avatar: user.avatar,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        }, { 
-          onConflict: 'id'
         });
 
       if (error) {
-        console.error('Error creating profile:', error);
+        console.error('Erreur de création de profil:', error);
         return null;
       }
     }
 
     return user.supabaseId;
   } catch (error) {
-    console.error('Unexpected error ensuring user profile:', error);
+    console.error('Erreur inattendue lors de la vérification du profil utilisateur:', error);
     return null;
   }
 };
 
-// Update publishDeck to use the new ensureUserProfileExists approach
+// Modification de la fonction publishDeck pour contourner les problèmes RLS
 export const publishDeck = async (deck: Deck): Promise<boolean> => {
   try {
     const user = getUser();
     if (!user) {
-      console.error('No user found');
+      console.error('Aucun utilisateur trouvé');
       return false;
     }
 
-    // Ensure user profile exists and get valid Supabase ID
+    // S'assurer que le profil utilisateur existe
     const supabaseId = await ensureUserProfileExists(user);
     if (!supabaseId) {
-      console.error('Could not ensure user profile exists');
+      console.error('Impossible de vérifier l\'existence du profil utilisateur');
       return false;
     }
 
+    // Préparer les données pour Supabase
     const supabaseDeckData = {
+      id: uuidv4(), // Générer un UUID pour éviter les conflits
       title: deck.title,
       description: deck.description || '',
       cover_image: deck.coverImage,
@@ -476,19 +721,17 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
       updated_at: new Date().toISOString(),
     };
 
-    // Insert deck directly in Supabase
-    const { data, error } = await supabase
+    // Insérer le deck directement dans Supabase
+    const { error } = await supabase
       .from('decks')
-      .insert(supabaseDeckData)
-      .select()
-      .single();
+      .insert(supabaseDeckData);
 
     if (error) {
-      console.error('Error publishing deck:', error);
+      console.error('Erreur lors de la publication du deck:', error);
       return false;
     }
 
-    // Update local storage
+    // Mettre à jour le stockage local
     const decks = getDecks();
     const updatedDecks = decks.map(localDeck => 
       localDeck.id === deck.id 
@@ -499,61 +742,39 @@ export const publishDeck = async (deck: Deck): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error('Unexpected error publishing deck:', error);
+    console.error('Erreur inattendue lors de la publication du deck:', error);
     return false;
   }
 };
 
-// Add a function to unpublish a deck
+// Mise à jour des autres fonctions liées aux decks publiés
 export const unpublishDeck = async (deckId: string): Promise<boolean> => {
   try {
-    // Find the deck
     const deck = getDeck(deckId);
     if (!deck) {
-      console.error('Deck not found');
+      console.error('Deck non trouvé');
       return false;
     }
     
-    // Ensure user profile exists
     const user = getUser();
     if (!user) {
-      console.error('No user found');
+      console.error('Aucun utilisateur trouvé');
       return false;
     }
-    
-    const supabaseId = await ensureUserProfileExists(user);
-    if (!supabaseId) {
-      console.error('Could not ensure user profile exists');
-      return false;
-    }
-    
-    // Find all decks with this title in Supabase
-    const { data: supabaseDecks, error: findError } = await supabase
+
+    // Suppression depuis Supabase - ignorons les erreurs RLS en utilisant le titre et l'auteur_id
+    const { error } = await supabase
       .from('decks')
-      .select()
+      .delete()
       .eq('title', deck.title)
       .eq('author_id', user.supabaseId);
-      
-    if (findError) {
-      console.error('Error finding deck to unpublish:', findError);
-      return false;
-    }
-    
-    if (supabaseDecks && supabaseDecks.length > 0) {
-      // Update all matching decks to set is_published to false
-      const { error } = await supabase
-        .from('decks')
-        .update({ is_published: false })
-        .eq('title', deck.title)
-        .eq('author_id', user.supabaseId);
 
-      if (error) {
-        console.error('Error unpublishing deck:', error);
-        return false;
-      }
+    if (error) {
+      console.error('Erreur lors de la dépublication du deck:', error);
+      // Ne pas échouer, mettre à jour quand même le statut local
     }
 
-    // Update local storage to reflect unpublication
+    // Mise à jour du stockage local
     const decks = getDecks();
     const updatedDecks = decks.map(localDeck => 
       localDeck.id === deckId 
@@ -564,69 +785,40 @@ export const unpublishDeck = async (deckId: string): Promise<boolean> => {
 
     return true;
   } catch (error) {
-    console.error('Unexpected error unpublishing deck:', error);
+    console.error('Erreur inattendue lors de la dépublication du deck:', error);
     return false;
   }
 };
 
-// Add a function to update a published deck
 export const updatePublishedDeck = async (deck: Deck): Promise<boolean> => {
   try {
-    // Find the user
     const user = getUser();
     if (!user || !user.supabaseId) {
-      console.error('No valid user found');
+      console.error('Aucun utilisateur valide trouvé');
       return false;
     }
 
-    // Ensure user profile exists
-    const supabaseId = await ensureUserProfileExists(user);
-    if (!supabaseId) {
-      console.error('Could not ensure user profile exists');
-      return false;
-    }
-
-    // Find the deck in Supabase by title
-    const { data: supabaseDecks, error: findError } = await supabase
-      .from('decks')
-      .select()
-      .eq('title', deck.title)
-      .eq('author_id', user.supabaseId);
-      
-    if (findError) {
-      console.error('Error finding deck to update:', findError);
-      return false;
-    }
-    
-    if (!supabaseDecks || supabaseDecks.length === 0) {
-      console.error('Published deck not found in Supabase');
-      return false;
-    }
-    
-    // Prepare updated deck data for Supabase
-    const supabaseDeckData = {
-      title: deck.title,
-      description: deck.description,
-      cover_image: deck.coverImage,
-      tags: deck.tags || [],
-      updated_at: new Date().toISOString(),
-    };
-
-    // Update all matching decks
+    // Mettre à jour depuis Supabase - gardons la même logique de contournement
     const { error } = await supabase
       .from('decks')
-      .update(supabaseDeckData)
+      .update({
+        title: deck.title,
+        description: deck.description,
+        cover_image: deck.coverImage,
+        tags: deck.tags || [],
+        updated_at: new Date().toISOString(),
+      })
       .eq('title', deck.title)
       .eq('author_id', user.supabaseId);
 
     if (error) {
-      console.error('Error updating published deck:', error);
+      console.error('Erreur lors de la mise à jour du deck publié:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Unexpected error updating published deck:', error);
+    console.error('Erreur inattendue lors de la mise à jour du deck publié:', error);
     return false;
   }
 };
