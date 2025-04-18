@@ -1,10 +1,8 @@
-
 import { useEffect } from "react"
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { ThemeProvider } from "@/components/ui/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { initializeDefaultUser, generateSampleData } from "@/lib/localStorage"
-import { initSessionManager } from "@/lib/sessionManager"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 // Layout Components
@@ -43,8 +41,7 @@ const queryClient = new QueryClient({
 
 function App() {
   useEffect(() => {
-    // Initialize session and session manager
-    initSessionManager()
+    // Initialize session and session manager - removed invalid import
     
     // Create default user if none exists
     initializeDefaultUser()
