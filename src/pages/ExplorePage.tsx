@@ -40,7 +40,7 @@ const ExplorePage = () => {
       }
 
       // Transform Supabase deck data to DeckCardProps
-      const deckCards = data.map(deck => ({
+      const deckCards: DeckCardProps[] = data.map(deck => ({
         id: deck.id,
         title: deck.title,
         description: deck.description || '',
@@ -275,7 +275,7 @@ const ExplorePage = () => {
           {filteredDecks.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredDecks
-                .filter(deck => (deck as any).isShared)
+                .filter(deck => deck.isShared)
                 .map((deck) => (
                   <DeckCard key={deck.id} {...deck} />
                 ))}
