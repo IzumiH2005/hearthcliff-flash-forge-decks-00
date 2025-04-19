@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { getDecks, type Deck } from '@/lib/localStorage';
 import { getUser } from '@/lib/localStorage';
@@ -18,13 +17,10 @@ const MyDecksPage = () => {
     () => localStorage.getItem("deckGridLayout") as "1" | "2" | "3" | "4" || "3"
   );
 
-  // Function to refresh decks
   const refreshDecks = () => {
-    // Force get latest user and decks data from localStorage
     const currentUser = getUser();
     setUser(currentUser);
     
-    // Get fresh deck data
     const allDecks = getDecks();
     const userDecks = allDecks.filter(deck => deck.authorId === currentUser?.id);
     
@@ -38,34 +34,27 @@ const MyDecksPage = () => {
     });
   };
 
-  // Refresh when navigation happens
   useEffect(() => {
-    // Always get the latest user when the component mounts or updates
     const currentUser = getUser();
     setUser(currentUser);
     
-    // Filtrer uniquement les decks de l'utilisateur connecté
     const userDecks = getDecks().filter(deck => deck.authorId === currentUser?.id);
     console.log('Navigation refresh - User ID:', currentUser?.id);
     console.log('Navigation refresh - Decks found:', userDecks.length);
     setDecks(userDecks);
-  }, [location.key]); // React to navigation changes
+  }, [location.key]);
 
-  // Additional periodic refresh for better sync on published site
   useEffect(() => {
-    // Initial load
     const initialUser = getUser();
     console.log('Initial load - User ID:', initialUser?.id);
     const initialDecks = getDecks().filter(deck => deck.authorId === initialUser?.id);
     console.log('Initial load - Decks found:', initialDecks.length);
     setDecks(initialDecks);
     
-    // First refresh after a short delay
     const initialRefreshTimeout = setTimeout(() => {
       refreshDecks();
     }, 1000);
     
-    // Set up an interval to check for updates more frequently
     const intervalId = setInterval(() => {
       const latestUser = getUser();
       if (latestUser) {
@@ -74,15 +63,14 @@ const MyDecksPage = () => {
           setDecks(freshDecks);
         }
       }
-    }, 2000); // Check every 2 seconds
+    }, 2000);
     
     return () => {
       clearTimeout(initialRefreshTimeout);
       clearInterval(intervalId);
     };
   }, []);
-  
-  // Grid layout handling
+
   const handleLayoutChange = (value: string) => {
     if (value) {
       const newLayout = value as "1" | "2" | "3" | "4";
@@ -95,7 +83,7 @@ const MyDecksPage = () => {
       });
     }
   };
-  
+
   const getGridClasses = () => {
     switch (gridLayout) {
       case "1": return "grid-cols-1";
@@ -167,7 +155,7 @@ const MyDecksPage = () => {
               id={deck.id}
               title={deck.title}
               description={deck.description}
-              cardCount={0} // TODO: Implement card count calculation
+              cardCount={0}
               coverImage={deck.coverImage}
               tags={deck.tags}
               author={user?.name || 'Utilisateur'}
