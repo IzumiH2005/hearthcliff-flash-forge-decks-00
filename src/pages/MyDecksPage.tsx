@@ -5,16 +5,20 @@ import { getUser } from '@/lib/localStorage';
 import DeckCard from '@/components/DeckCard';
 import { Button } from '@/components/ui/button';
 import { Link, useLocation } from 'react-router-dom';
-import { Plus, RefreshCcw } from 'lucide-react';
+import { Plus, RefreshCcw, LayoutGrid, Columns, Rows } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const MyDecksPage = () => {
   const [decks, setDecks] = useState<Deck[]>([]);
   const [user, setUser] = useState(getUser());
   const location = useLocation();
   const { toast } = useToast();
+  const [gridLayout, setGridLayout] = useState<"1" | "2" | "3" | "4">(
+    () => localStorage.getItem("deckGridLayout") as "1" | "2" | "3" | "4" || "3"
+  );
 
-  // Fonction pour rafraîchir la liste des decks
+  // Function to refresh decks
   const refreshDecks = () => {
     // Force get latest user and decks data from localStorage
     const currentUser = getUser();
@@ -77,6 +81,30 @@ const MyDecksPage = () => {
       clearInterval(intervalId);
     };
   }, []);
+  
+  // Grid layout handling
+  const handleLayoutChange = (value: string) => {
+    if (value) {
+      const newLayout = value as "1" | "2" | "3" | "4";
+      setGridLayout(newLayout);
+      localStorage.setItem("deckGridLayout", newLayout);
+      
+      toast({
+        title: "Mise en page modifiée",
+        description: `Affichage avec ${newLayout} colonne${newLayout !== "1" ? "s" : ""}`,
+      });
+    }
+  };
+  
+  const getGridClasses = () => {
+    switch (gridLayout) {
+      case "1": return "grid-cols-1";
+      case "2": return "grid-cols-1 sm:grid-cols-2";
+      case "3": return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+      case "4": return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
+      default: return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+    }
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -95,6 +123,29 @@ const MyDecksPage = () => {
           </Button>
         </div>
       </div>
+      
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Affichage:</span>
+          <ToggleGroup type="single" value={gridLayout} onValueChange={handleLayoutChange}>
+            <ToggleGroupItem value="1" aria-label="Une colonne" title="Une colonne">
+              <Rows className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="2" aria-label="Deux colonnes" title="Deux colonnes">
+              <Columns className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="3" aria-label="Trois colonnes" title="Trois colonnes">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="4" aria-label="Quatre colonnes" title="Quatre colonnes">
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {decks.length} deck{decks.length !== 1 ? "s" : ""}
+        </div>
+      </div>
 
       {decks.length === 0 ? (
         <div className="text-center py-12">
@@ -109,7 +160,7 @@ const MyDecksPage = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`grid ${getGridClasses()} gap-6`}>
           {decks.map(deck => (
             <DeckCard 
               key={deck.id}

@@ -1,8 +1,10 @@
+
 import { Link, useLocation } from "react-router-dom";
 import { Home, Plus, Search, User, Menu, X, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { ViewToggle } from "@/components/ViewToggle";
 
 const Navbar = () => {
   const location = useLocation();
@@ -43,6 +45,8 @@ const Navbar = () => {
         </nav>
 
         <div className="flex items-center gap-4">
+          <ViewToggle />
+          
           <Button 
             variant="ghost" 
             size="icon"
@@ -77,6 +81,10 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="container pb-4 md:hidden">
           <nav className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm font-medium">Vue:</span>
+              <ViewToggle />
+            </div>
             <Link 
               to="/" 
               className={`flex items-center gap-2 px-2 py-2 rounded-md ${location.pathname === '/' ? 'bg-primary/10 text-primary' : ''}`}

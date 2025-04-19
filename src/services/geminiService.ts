@@ -1,7 +1,7 @@
 
 // Constants
 const API_KEY = "YOUR_GEMINI_API_KEY"; // Replace with your actual API key
-const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent";
+const API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
 
 interface GeminiResponse {
   candidates: Array<{

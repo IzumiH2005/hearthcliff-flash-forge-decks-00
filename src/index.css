@@ -5,65 +5,91 @@
 
 @layer base {
   :root {
-    --background: 255 255% 100%;
-    --foreground: 240 10% 10%;
-
-    --card: 255 255% 100%;
-    --card-foreground: 240 10% 10%;
-
-    --popover: 255 255% 100%;
-    --popover-foreground: 240 10% 10%;
-
-    --primary: 258 90% 66%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 300 70% 88%;
-    --secondary-foreground: 240 10% 10%;
-
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
-
-    --accent: 340 80% 65%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 258 90% 66%;
-
-    --radius: 0.75rem;
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 5.9% 10%;
+    --radius: 0.5rem;
+    
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 240 10% 3.9%;
+    --sidebar-primary: 248 90% 66%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 190 95% 85%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 240 5.9% 90%;
+    --sidebar-ring: 248 90% 66%;
   }
-
+  
   .dark {
-    --background: 240 10% 10%;
-    --foreground: 0 0% 95%;
-
-    --card: 240 10% 10%;
-    --card-foreground: 0 0% 95%;
-
-    --popover: 240 10% 10%;
-    --popover-foreground: 0 0% 95%;
-
-    --primary: 258 90% 66%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 300 60% 40%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 240 5% 25%;
-    --muted-foreground: 240 5% 65%;
-
-    --accent: 340 80% 45%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 240 6% 20%;
-    --input: 240 6% 20%;
-    --ring: 258 90% 66%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 85.7% 97.3%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
+    
+    /* Sidebar */
+    --sidebar-background: 240 10% 3.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 248 90% 66%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 190 95% 40%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 248 90% 66%;
+  }
+  
+  /* Force desktop view on mobile devices */
+  html.force-desktop {
+    min-width: 1024px; /* lg breakpoint */
+  }
+  
+  html.force-desktop body {
+    min-width: 1024px;
+    overflow-x: auto;
+  }
+  
+  /* Force mobile view on desktop devices */
+  html.force-mobile {
+    max-width: 640px; /* sm breakpoint */
+    margin-left: auto;
+    margin-right: auto;
+    overflow-x: hidden;
+  }
+  
+  html.force-mobile body {
+    max-width: 640px;
+    overflow-x: hidden;
   }
 }
 
@@ -73,95 +99,32 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
 
-@layer components {
-  .flashcard {
-    @apply relative w-full h-full rounded-xl shadow-lg cursor-pointer perspective-1000 transition-transform duration-300;
-    min-height: 300px;
-    aspect-ratio: 3/2;
+.nav-link {
+  @apply px-3 py-2 text-sm font-medium transition-colors hover:text-primary;
+}
+
+.nav-link.active {
+  @apply text-primary font-semibold;
+}
+
+/* Animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
   }
-  
-  .flashcard-inner {
-    @apply relative w-full h-full transition-transform duration-500 transform-style-3d;
+  to {
+    opacity: 1;
   }
-  
-  .flashcard.flipped .flashcard-inner {
-    @apply rotate-y-180;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
   }
-  
-  .flashcard-front, .flashcard-back {
-    @apply absolute w-full h-full bg-card p-6 rounded-xl shadow-md flex flex-col justify-center items-center backface-hidden;
-  }
-  
-  .flashcard-back {
-    @apply rotate-y-180;
-  }
-  
-  .perspective-1000 {
-    perspective: 1000px;
-  }
-  
-  .transform-style-3d {
-    transform-style: preserve-3d;
-  }
-  
-  .backface-hidden {
-    backface-visibility: hidden;
-  }
-  
-  .rotate-y-180 {
-    transform: rotateY(180deg);
-  }
-  
-  .deck-card {
-    @apply relative overflow-hidden rounded-2xl shadow-md transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
-  }
-  
-  .deck-card-overlay {
-    @apply absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-80;
-  }
-  
-  .glass-effect {
-    @apply bg-white/10 backdrop-blur-sm border border-white/20 shadow-lg;
-  }
-  
-  .nav-link {
-    @apply relative px-3 py-2 text-foreground/70 hover:text-foreground transition-colors duration-200;
-  }
-  
-  .nav-link::after {
-    content: '';
-    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-primary transition-all duration-300;
-  }
-  
-  .nav-link:hover::after {
-    @apply w-full;
-  }
-  
-  .nav-link.active {
-    @apply text-foreground font-medium;
-  }
-  
-  .nav-link.active::after {
-    @apply w-full;
-  }
-  
-  .purple-gradient {
-    @apply bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500;
-  }
-  
-  .session-key-box {
-    @apply bg-white/20 backdrop-blur-md rounded-xl p-6 text-center border border-white/30;
-  }
-  
-  .session-key {
-    @apply font-mono text-lg font-semibold tracking-wide;
-  }
-  
-  .copy-button {
-    @apply flex items-center justify-center gap-2 bg-white/30 hover:bg-white/40 text-white rounded-full px-4 py-2 transition-all;
+  to {
+    transform: translateX(0);
   }
 }
