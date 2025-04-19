@@ -15,6 +15,7 @@ import FlashCard from "@/components/FlashCard";
 import { getDeck, getFlashcardsByDeck, Flashcard, getThemesByDeck } from "@/lib/localStorage";
 import { recordCardStudy, updateSessionStats } from "@/lib/sessionManager";
 import { ArrowLeft, ArrowRight, Check, X, Shuffle, ThumbsUp, ThumbsDown, Lightbulb, MessageSquare, Repeat } from "lucide-react";
+import { evaluateAnswer } from "@/services/geminiService";
 
 enum StudyMode {
   FLASHCARDS = "flashcards",
@@ -122,16 +123,6 @@ const StudyPage = () => {
     setShowResults(false);
   }, [studyTheme, shuffle, cards]);
 
-  useEffect(() => {
-    if (geminiApiKey) {
-      localStorage.setItem('gemini-api-key', geminiApiKey);
-      setIsGeminiEnabled(true);
-    } else {
-      localStorage.removeItem('gemini-api-key');
-      setIsGeminiEnabled(false);
-    }
-  }, [geminiApiKey]);
-
   const shuffleArray = <T,>(array: T[]): T[] => {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
@@ -215,45 +206,10 @@ const StudyPage = () => {
     setApiChecking(true);
 
     try {
-      const response = await fetch(`${geminiEndpoint}?key=${geminiApiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Je vais te donner la réponse correcte à une question et la réponse d'un utilisateur. Dis-moi si la réponse de l'utilisateur est correcte ou non. Réponds uniquement par "CORRECT" ou "INCORRECT".
-
-Réponse correcte: "${correctAnswer}"
-Réponse utilisateur: "${userAnswer}"
-
-Est-ce que la réponse utilisateur est correcte ?`
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.2,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 1024,
-          }
-        }),
-      });
-
-      const result = await response.json();
+      // Use the evaluateAnswer function from the geminiService
+      const { score, feedback } = await evaluateAnswer(userAnswer, correctAnswer);
       
-      if (result.error) {
-        console.error("Gemini API error:", result.error);
-        toast({
-          title: "Erreur API Gemini",
-          description: result.error.message || "Erreur lors de la vérification de la réponse",
-          variant: "destructive",
-        });
-        return null;
-      }
-      
-      const textResult = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const isCorrect = textResult.includes('CORRECT');
+      const isCorrect = score >= 0.7; // Consider 70% match as correct
       
       setQuizResults({
         ...quizResults,
@@ -263,9 +219,19 @@ Est-ce que la réponse utilisateur est correcte ?`
       if (isCorrect) {
         setCorrectAnswers(prev => prev + 1);
         recordCardStudy(true);
+        toast({
+          title: "Correct!",
+          description: feedback,
+          variant: "default",
+        });
       } else {
         setIncorrectAnswers(prev => prev + 1);
         recordCardStudy(false);
+        toast({
+          title: "Incorrect",
+          description: feedback,
+          variant: "destructive",
+        });
       }
       
       return isCorrect;
@@ -273,7 +239,7 @@ Est-ce que la réponse utilisateur est correcte ?`
       console.error("Error checking answer with Gemini:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de vérifier la réponse avec l'API Gemini",
+        description: "Impossible de vérifier la réponse avec l'API Gemini. Vérifiez votre clé API et réessayez.",
         variant: "destructive",
       });
       return null;
@@ -373,6 +339,21 @@ Est-ce que la réponse utilisateur est correcte ?`
       setFilteredCards(shuffleArray([...filteredCards]));
     }
   };
+
+  useEffect(() => {
+    if (geminiApiKey) {
+      localStorage.setItem('gemini-api-key', geminiApiKey);
+      setIsGeminiEnabled(true);
+      toast({
+        title: "API Gemini configurée",
+        description: "Vous pouvez maintenant utiliser la vérification automatique",
+        variant: "default",
+      });
+    } else {
+      localStorage.removeItem('gemini-api-key');
+      setIsGeminiEnabled(false);
+    }
+  }, [geminiApiKey, toast]);
 
   if (!deck || filteredCards.length === 0) {
     return (
@@ -787,7 +768,7 @@ Est-ce que la réponse utilisateur est correcte ?`
                         id="api-key"
                         type="password"
                         value={geminiApiKey}
-                        placeholder="Entrez votre clé API Gemini"
+                        placeholder="Entrez votre clé API Gemini-1.5-flash"
                         onChange={(e) => setGeminiApiKey(e.target.value)}
                       />
                     </div>
@@ -806,6 +787,17 @@ Est-ce que la réponse utilisateur est correcte ?`
                         La vérification automatique utilisera une correspondance exacte sans l'API Gemini.
                       </p>
                     )}
+                    <Alert className="mt-2 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
+                      <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <AlertTitle>Note sur l'API Gemini</AlertTitle>
+                      <AlertDescription className="text-xs">
+                        Utilisez une clé API pour Gemini 1.5 Flash. Vous pouvez l'obtenir sur 
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" 
+                           className="underline text-blue-600 dark:text-blue-400 ml-1">
+                          Google AI Studio
+                        </a>.
+                      </AlertDescription>
+                    </Alert>
                   </div>
                 )}
               </div>
