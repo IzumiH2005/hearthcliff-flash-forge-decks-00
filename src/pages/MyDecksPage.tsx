@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { getDecks, type Deck } from '@/lib/localStorage';
 import { getUser } from '@/lib/localStorage';
@@ -86,7 +85,7 @@ const MyDecksPage = () => {
         </div>
       </div>
       
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-end items-center mb-6">
         <div className="text-sm text-muted-foreground">
           {decks.length} deck{decks.length !== 1 ? "s" : ""}
         </div>
@@ -105,7 +104,7 @@ const MyDecksPage = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {decks.map(deck => (
             <DeckCard 
               key={deck.id}
